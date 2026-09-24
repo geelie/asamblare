@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Asamblare</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--bg:#f4f6f8;--card:#fff;--ink:#0f1419;--mut:#64748b;--line:#e2e8f0;--teal:#0f766e;--tb:#ccfbf1;--gr:#1f2933;--ok:#15803d;--okb:#dcfce7;--no:#b91c1c;--nob:#fee2e2;--wa:#a16207;--wab:#fef9c3;--bl:#1d4ed8;--blb:#dbeafe;--sl:#475569;--slb:#e2e8f0}
+@media(prefers-color-scheme:dark){:root{--bg:#0f1419;--card:#1a222b;--ink:#e8edf2;--mut:#94a3b8;--line:#2d3945;--teal:#2dd4bf;--tb:#134e4a;--gr:#0b0f13;--ok:#4ade80;--okb:#14532d;--no:#f87171;--nob:#7f1d1d;--wa:#facc15;--wab:#713f12;--bl:#93c5fd;--blb:#1e3a8a;--sl:#cbd5e1;--slb:#334155}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{background:var(--gr);color:#fff;padding:10px 16px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+header small{color:#94a3b8}nav{display:flex;gap:6px;flex-wrap:wrap;padding:10px 16px 0;max-width:980px;margin:0 auto}
+nav button{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:8px 14px;font:inherit;cursor:pointer}nav button.on{background:var(--teal);border-color:var(--teal);color:#fff}
+main{max-width:980px;margin:0 auto;padding:14px 16px 40px}.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}.mono{font-family:ui-monospace,Menlo,Consolas,monospace}.mut{color:var(--mut);font-size:13px}
+input,textarea,select{border:1px solid var(--line);border-radius:8px;padding:9px 10px;font:inherit;background:var(--card);color:var(--ink);width:100%}textarea{min-height:54px}
+.btn{border:0;border-radius:9px;padding:11px 16px;font:600 14px inherit;cursor:pointer;background:var(--teal);color:#fff}.btn:disabled{opacity:.4;cursor:not-allowed}.btn.red{background:var(--no)}.btn.gh{background:transparent;color:var(--ink);border:1px solid var(--line)}.btn.sm{padding:6px 10px;font-size:13px}
+.pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:600}.p-in_asamblare{background:var(--wab);color:var(--wa)}.p-in_remediere{background:var(--nob);color:var(--no)}.p-asteapta_ctc{background:var(--slb);color:var(--sl)}.p-in_ctc{background:var(--blb);color:var(--bl)}.p-ctc_avizat{background:var(--okb);color:var(--ok)}
+.timer{font:600 24px ui-monospace,Menlo,monospace;color:var(--teal)}.crit{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:var(--card)}.crit.nok{border-color:var(--no)}.crit.ok{border-color:var(--ok)}
+.tg{display:flex;gap:6px}.tg button{min-width:64px;padding:10px 14px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:600 14px inherit;cursor:pointer}.tg .ok{background:var(--okb);color:var(--ok);border-color:var(--ok)}.tg .no{background:var(--nob);color:var(--no);border-color:var(--no)}
+.def{margin-top:10px;padding:10px;background:var(--nob);border-radius:9px}.ph{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}.ph img{width:64px;height:64px;object-fit:cover;border-radius:8px;cursor:pointer}
+.lbl{display:inline-block;border:1px dashed var(--mut);border-radius:8px;padding:8px 12px;cursor:pointer;font-size:14px}.lbl input{display:none}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:12px}.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px;text-align:left;font:inherit;color:var(--ink);cursor:pointer}.kpi.on{border-color:var(--teal);box-shadow:0 0 0 2px var(--tb)}.kpi b{display:block;font-size:24px}
+.al{background:var(--wab);color:var(--wa);border-radius:10px;padding:10px 12px;margin-bottom:12px}.wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;min-width:600px}th,td{text-align:left;padding:8px 9px;border-bottom:1px solid var(--line);font-size:14px;white-space:nowrap}th{color:var(--mut);font-size:12px}
+.foot{position:sticky;bottom:0;display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;padding:12px 0;background:var(--bg)}
+.auth{max-width:360px;margin:8vh auto;padding:0 16px}.auth .card>*{margin-bottom:10px}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--gr);color:#fff;padding:10px 16px;border-radius:10px;z-index:99;display:none;max-width:90%}#toast.e{background:var(--no)}
+.ov{position:fixed;inset:0;background:rgba(15,20,25,.55);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}.ov>div{background:var(--card);border-radius:14px;padding:18px;max-width:560px;width:100%;max-height:88vh;overflow:auto}
+.tl div{padding:6px 0;border-bottom:1px solid var(--line);font-size:14px}
+</style>
+</head>
+<body>
+<div id="app"></div><div id="toast"></div>
+<script>
+const SB_URL="https://ksjvpuyiuplaonpbwrfn.supabase.co",
+SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtzanZwdXlpdXBsYW9ucGJ3cmZuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxMDgyNDEsImV4cCI6MjA5OTY4NDI0MX0._Wp1Ty4KBFJORjmI41S5eFfVulZJyhMr0ODGykn49uM";
+const sb=supabase.createClient(SB_URL,SB_KEY),B="asamblare-foto";
+const $=(s,e=document)=>e.querySelector(s),esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const ROL={asm_operator:"Asamblare",asm_remediere:"Remediere",asm_ctc:"CTC",asm_admin:"Admin asamblare",superadmin:"Super Admin"};
+const ADM=[["stadii","Stadii produse"],["checklist","Checklist"],["setari","Setări"]];
+const TABS={asm_operator:[["preia","Preia produs"],["lucru","În lucru"]],asm_remediere:[["remediat","De remediat"],["lucru","În lucru"]],asm_ctc:[["ctc","De verificat"],["lucru","În lucru"]],asm_admin:ADM,superadmin:ADM};
+const ST={in_asamblare:"În asamblare",in_remediere:"În remediere",asteapta_ctc:"Așteaptă CTC",in_ctc:"În CTC",ctc_avizat:"Avizat CTC"};
+const EV={preluat_asamblare:"Preluat din Antedepozit",asamblare_ok:"Asamblare finalizată OK",trimis_remediere_din_asamblare:"Trimis la remediere (din asamblare)",trimis_remediere_din_ctc:"Trimis la remediere (din CTC)",preluat_remediere:"Remediere preluată",remediere_ok:"Remediere finalizată",preluat_ctc:"Verificare CTC începută",ctc_avizat:"Aviz CTC acordat",eliberat_de_admin:"Eliberat de admin",aviz_revocat:"Aviz revocat"};
+let me=null,tab=null,S={},names={},F=null,tmr=null,rt=null;
+const nm=id=>names[id]||"—",dt=t=>t?new Date(t).toLocaleString("ro-RO"):"—";
+function dur(ms){const m=Math.floor(ms/6e4);return m<60?m+" min":m<1440?Math.floor(m/60)+" h "+m%60+" min":Math.floor(m/1440)+" zile "+Math.floor(m%1440/60)+" h"}
+function toast(m,e){const t=$("#toast");t.textContent=m;t.className=e?"e":"";t.style.display="block";clearTimeout(t._t);t._t=setTimeout(()=>t.style.display="none",4000)}
+async function rpc(f,a){const{data,error}=await sb.rpc(f,a);if(error){toast(error.message,1);throw error}return data}
+
+/* ---------- AUTH ---------- */
+function authView(mode="login"){
+ clearInterval(tmr);$("#app").innerHTML=`<div class="auth"><h2>⚙️ Asamblare</h2><div class="card">
+ <input id="em" type="email" placeholder="Email" autocomplete="username">
+ ${mode==="forgot"?"":'<input id="pw" type="password" placeholder="Parolă (minim 6 caractere)" autocomplete="current-password">'}
+ <button class="btn" style="width:100%" id="go">${{login:"Autentificare",signup:"Creează cont",forgot:"Trimite link de resetare"}[mode]}</button>
+ <div class="mut" style="text-align:center"><a href="#" data-m="login">Autentificare</a> · <a href="#" data-m="signup">Cont nou</a> · <a href="#" data-m="forgot">Am uitat parola</a></div>
+ ${mode==="signup"?'<div class="mut">Contul nou nu are rol. Un Super Admin îl activează din aplicația de distribuții.</div>':""}</div></div>`;
+ document.querySelectorAll("[data-m]").forEach(a=>a.onclick=e=>{e.preventDefault();authView(a.dataset.m)});
+ $("#go").onclick=async()=>{const email=$("#em").value.trim(),password=$("#pw")?.value,url=location.href.split("#")[0];let r;
+  if(mode==="login")r=await sb.auth.signInWithPassword({email,password});
+  else if(mode==="signup")r=await sb.auth.signUp({email,password,options:{emailRedirectTo:url}});
+  else r=await sb.auth.resetPasswordForEmail(email,{redirectTo:url});
+  if(r.error)return toast(r.error.message==="Invalid login credentials"?"Email sau parolă incorectă.":r.error.message,1);
+  if(mode!=="login")toast(mode==="signup"?"Verifică emailul pentru confirmare.":"Link trimis pe email.")}}
+async function boot(){
+ const{data:{session}}=await sb.auth.getSession();if(!session)return authView();
+ const{data:p}=await sb.from("profiles").select("*").eq("id",session.user.id).single();me=p;
+ if(!p||!TABS[p.role]){$("#app").innerHTML=`<div class="auth"><div class="card"><h3>Acces indisponibil</h3><p class="mut">${p&&p.role?"Rolul tău nu are acces la această aplicație.":"Contul nu are încă un rol alocat. Contactează un Super Admin."}</p><button class="btn" id="lo">Deconectare</button></div></div>`;$("#lo").onclick=()=>sb.auth.signOut();return}
+ const{data:s}=await sb.from("asm_setari").select("*").eq("id",1).single();S=s||{max_in_lucru:3,prag_alerta_ore:8,ctc_alerta_zile:3,poze_obligatorii:true};
+ const{data:pr}=await sb.from("profiles").select("id,nume,email");(pr||[]).forEach(x=>names[x.id]=x.nume||x.email);names[me.id]=me.nume||me.email;
+ $("#app").innerHTML=`<header><div><b>⚙️ Asamblare</b> <small>· ${ROL[p.role]} · ${esc(names[me.id])}</small></div><button class="btn gh sm" style="color:#fff;border-color:#475569" id="lo">Deconectare</button></header><nav>${TABS[p.role].map(t=>`<button data-a="tab" data-t="${t[0]}">${t[1]}</button>`).join("")}</nav><main id="c"></main>`;
+ $("#lo").onclick=()=>sb.auth.signOut();
+ if(rt)sb.removeChannel(rt);
+ rt=sb.channel("asm").on("postgres_changes",{event:"*",schema:"public",table:"asm_produse"},()=>{if(!F&&tab!=="preia"&&!document.querySelector(".ov")){clearTimeout(rt._d);rt._d=setTimeout(()=>go(tab),600)}}).subscribe();
+ go(TABS[p.role][0][0])}
+let booting=false;async function boot0(){if(booting)return;booting=true;try{await boot()}finally{booting=false}}
+sb.auth.onAuthStateChange((ev,ss)=>{if(ev==="SIGNED_OUT"){me=null;F=null;setTimeout(boot0,0)}else if(ev==="SIGNED_IN"&&(!me||!ss||ss.user.id!==me.id))setTimeout(boot0,0)});
+
+/* ---------- NAV ---------- */
+const V={preia:vPreia,lucru:vLucru,remediat:vRem,ctc:vCtc,stadii:vStadii,checklist:vCheck,setari:vSet};
+function go(t){F=null;clearInterval(tmr);tab=t;document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.t===t));V[t]($("#c"))}
+const act={
+ tab:d=>go(d.t),
+ preia:async d=>fisa(await rpc("asm_preia",{p_antedepozit_id:d.id})),
+ open:d=>d.tip==="remediere"?rem(d.id):fisa(d.id),
+ prem:async d=>rem(await rpc("asm_preia_remediere",{p_asm:d.id})),
+ pctc:async d=>fisa(await rpc("asm_ctc_preia",{p_asm:d.id})),
+ hist:d=>ist(d.id),
+ elib:async d=>{const m=prompt("Motiv eliberare:");if(m===null)return;await rpc("asm_elibereaza",{p_asm:d.id,p_motiv:m});go(tab)},
+ revoc:async d=>{const m=prompt("Motiv revocare aviz (obligatoriu):");if(!m)return;await rpc("asm_revoca_aviz",{p_asm:d.id,p_motiv:m});go(tab)},
+ kpi:d=>{stF=stF===d.s?"":d.s;go("stadii")},
+ rez:d=>setRez(+d.i,d.v),
+ ner:d=>addNer(d.c||null),
+ back:()=>go(tab),
+ fin:async()=>{await rpc(F.e.tip==="ctc"?"asm_ctc_avizeaza":"asm_finalizeaza_asamblare",{p_etapa:F.e.id});toast(F.e.tip==="ctc"?"Aviz CTC acordat.":"Produs trimis în Depozit central.");go(tab)},
+ send:async()=>{await rpc("asm_trimite_remediere",{p_etapa:F.e.id});toast("Produs trimis la remediere.");go(tab)},
+ renunta:async()=>{if(!confirm("Produsul revine în Antedepozit Import. Continui?"))return;await rpc("asm_renunta",{p_etapa:F.e.id,p_motiv:prompt("Motiv (opțional):")||null});go(tab)},
+ remfin:async()=>{await rpc("asm_finalizeaza_remediere",{p_etapa:F.e.id,p_nota:$("#rn")?.value||null});toast("Remediere finalizată. Produsul așteaptă CTC.");go(tab)},
+ delsab:async d=>{await sb.from("asm_checklist_sabloane").delete().eq("id",d.id);go("checklist")},
+ addsab:async d=>{const t=$("#ns-"+d.t).value.trim();if(!t)return;const mx=Math.max(0,...(await sb.from("asm_checklist_sabloane").select("ordine").eq("tip",d.t)).data.map(x=>x.ordine));const r=await sb.from("asm_checklist_sabloane").insert({tip:d.t,text:t,ordine:mx+1});if(r.error)return toast(r.error.message,1);go("checklist")},
+ close:()=>document.querySelector(".ov")?.remove()
+};
+document.addEventListener("click",e=>{const b=e.target.closest("[data-a]");if(b){e.preventDefault();act[b.dataset.a]?.(b.dataset)}});
+document.addEventListener("change",async e=>{const t=e.target,c=t.dataset.c;if(!c)return;
+ if(c==="desc"){const n=F.ner.find(x=>x.id===t.dataset.id);n.descriere=t.value;const r=await sb.from("asm_nereguli").update({descriere:t.value}).eq("id",t.dataset.id);if(r.error)toast(r.error.message,1);foot()}
+ else if(c==="foto")foto(t);
+ else if(c==="rd"){await rpc("asm_marcheaza_remediata",{p_neregula:t.dataset.id,p_remediata:t.checked,p_nota:$("#nt-"+t.dataset.id)?.value||null});rem(F.e.id)}
+ else if(c==="rnota"){const chk=$("#rc-"+t.dataset.id);if(chk.checked)await rpc("asm_marcheaza_remediata",{p_neregula:t.dataset.id,p_remediata:true,p_nota:t.value})}
+ else if(c==="sab"){const r=await sb.from("asm_checklist_sabloane").update(t.dataset.f==="activ"?{activ:t.checked}:t.dataset.f==="ordine"?{ordine:+t.value}:{text:t.value}).eq("id",t.dataset.id);if(r.error)toast(r.error.message,1)}
+ else if(c==="set"){const r=await sb.from("asm_setari").update({[t.dataset.f]:t.type==="checkbox"?t.checked:+t.value}).eq("id",1);if(r.error)return toast(r.error.message,1);S[t.dataset.f]=t.type==="checkbox"?t.checked:+t.value;toast("Salvat.")}
+});
+
+/* ---------- LISTE ---------- */
+const prodTxt=p=>`<div class="mono" style="font-weight:600">${esc(p.vin||"fără VIN")}</div><div class="mut">${esc(p.model||"—")} · ${esc(p.culoare||"—")}</div>`;
+async function vPreia(c){
+ c.innerHTML=`<div class="card"><input id="q" placeholder="Caută după VIN (minim 3 caractere)..." autocomplete="off"></div><div id="res" class="mut">Introdu cel puțin 3 caractere din VIN.</div>`;
+ let t;$("#q").oninput=e=>{clearTimeout(t);t=setTimeout(async()=>{const v=e.target.value.trim();if(v.length<3)return $("#res").innerHTML="Introdu cel puțin 3 caractere din VIN.";
+  const d=await rpc("asm_cauta_antedepozit",{p_vin:v});$("#res").innerHTML=d.length?d.map(p=>`<div class="card row"><div>${prodTxt(p)}<div class="mut">în antedepozit din ${dt(p.created_at)}</div></div><button class="btn" data-a="preia" data-id="${p.id}">Preia pentru asamblare</button></div>`).join(""):"Niciun rezultat."},350)};$("#q").focus()}
+async function vLucru(c){
+ const{data}=await sb.from("asm_etape").select("id,tip,started_at,asm_produse(vin,model,culoare)").eq("user_id",me.id).is("ended_at",null).order("started_at");
+ c.innerHTML=`<div class="mut" style="margin-bottom:8px">Produse în lucru: ${(data||[]).length} / ${S.max_in_lucru}</div>`+((data||[]).map(e=>`<div class="card row"><div>${prodTxt(e.asm_produse)}<div class="mut">${e.tip} · de ${dur(Date.now()-new Date(e.started_at))}</div></div><button class="btn" data-a="open" data-id="${e.id}" data-tip="${e.tip}">Deschide</button></div>`).join("")||'<div class="mut">Nimic în lucru.</div>')}
+async function listaStadiu(c,st,btn,lbl,extra){
+ const{data}=await sb.from("asm_produse").select("*").eq("stadiu",st).is("operator_curent",null).order("updated_at");
+ c.innerHTML=(data||[]).map(p=>`<div class="card row"><div>${prodTxt(p)}<div class="mut">de ${dur(Date.now()-new Date(p.updated_at))}${p.nr_remedieri?` · reverificare (remediat de ${p.nr_remedieri}×)`:""}${extra&&p.sursa_remediere?` · sursa: ${p.sursa_remediere}`:""}</div></div><button class="btn" data-a="${btn}" data-id="${p.id}">${lbl}</button></div>`).join("")||'<div class="mut">Niciun produs în această listă.</div>'}
+const vRem=c=>listaStadiu(c,"in_remediere","prem","Preia pentru remediere",1),vCtc=c=>listaStadiu(c,"asteapta_ctc","pctc","Preia pentru verificare CTC");
+
+/* ---------- FIȘĂ ASAMBLARE / CTC ---------- */
+async function loadF(id){
+ const{data:e}=await sb.from("asm_etape").select("*,asm_produse(*)").eq("id",id).single();if(!e||e.ended_at){F=null;go(tab);return false}
+ const tipS=e.tip==="ctc"?"ctc":"asamblare";
+ const[s,r,n]=await Promise.all([sb.from("asm_checklist_sabloane").select("*").eq("tip",tipS).eq("activ",true).order("ordine"),sb.from("asm_checklist_rezultate").select("*").eq("etapa_id",id),sb.from("asm_nereguli").select("*,asm_poze(*)").eq("asm_produs_id",e.asm_produs_id).order("created_at")]);
+ F={e,p:e.asm_produse,sab:s.data||[],rez:r.data||[],ner:n.data||[],url:{}};
+ const paths=F.ner.flatMap(x=>x.asm_poze.map(p=>p.storage_path));
+ if(paths.length){const{data}=await sb.storage.from(B).createSignedUrls(paths,3600);(data||[]).forEach(u=>F.url[u.path]=u.signedUrl)}
+ return true}
+const cur=()=>F.ner.filter(n=>n.etapa_id===F.e.id),imgs=(n,tip)=>n.asm_poze.filter(p=>p.tip===tip).map(p=>`<img src="${F.url[p.storage_path]||""}" onclick="window.open(this.src)">`).join("");
+const fotoBtn=(id,tip,lbl)=>`<label class="lbl">📷 ${lbl}<input type="file" accept="image/*" capture="environment" data-c="foto" data-id="${id}" data-tip="${tip}"></label>`;
+function nerBox(n){return`<div style="margin-bottom:8px"><textarea data-c="desc" data-id="${n.id}" placeholder="Descrie neregula...">${esc(n.descriere)}</textarea><div class="ph">${imgs(n,"inainte")}${fotoBtn(n.id,"inainte","Adaugă poză")}</div></div>`}
+async function fisa(id){
+ if(!await loadF(id))return;const{e,p}=F;const prev=F.ner.filter(n=>n.etapa_id!==e.id);
+ $("#c").innerHTML=`<div class="card"><div class="row"><div>${prodTxt(p)}<div class="mut">${e.tip==="ctc"?"Verificare CTC":"Asamblare"} · început ${dt(e.started_at)}</div></div><div style="text-align:right"><div class="timer" id="tm"></div><div class="mut">de la preluare</div></div></div></div>
+ ${e.tip==="ctc"&&prev.length?`<div class="al"><b>Reverificare</b> – defecte raportate anterior:<br>${prev.map(n=>"• "+esc(n.criteriu_text?n.criteriu_text+": ":"")+esc(n.descriere)+(n.status==="remediata"?" ✔ remediat":"")).join("<br>")}</div>`:""}
+ ${F.sab.length?"":'<div class="al">Nu există criterii de checklist definite. Un Admin trebuie să le adauge din tabul „Checklist".</div>'}
+ ${F.sab.map((s,i)=>{const r=F.rez.find(x=>x.ordine===i+1),nn=cur().filter(n=>n.criteriu_text===s.text);return`<div class="crit ${r?r.rezultat:""}"><div class="row"><b>${i+1}. ${esc(s.text)}</b><div class="tg"><button class="${r?.rezultat==="ok"?"ok":""}" data-a="rez" data-i="${i}" data-v="ok">OK</button><button class="${r?.rezultat==="nok"?"no":""}" data-a="rez" data-i="${i}" data-v="nok">NOK</button></div></div>${r?.rezultat==="nok"?`<div class="def">${nn.map(nerBox).join("")}<button class="btn gh sm" data-a="ner" data-c="${esc(s.text)}">+ Altă neregulă la acest criteriu</button></div>`:""}</div>`}).join("")}
+ ${cur().filter(n=>!n.criteriu_text).length?`<div class="crit nok"><b>Nereguli în afara checklist-ului</b><div class="def">${cur().filter(n=>!n.criteriu_text).map(nerBox).join("")}</div></div>`:""}
+ <button class="btn gh sm" data-a="ner">+ Neregulă în afara checklist-ului</button>
+ <div class="foot"><div><button class="btn gh" data-a="back">← Înapoi</button> ${e.tip==="asamblare"?'<button class="btn gh" data-a="renunta">Renunță</button>':""}</div><div id="ft"></div></div>`;
+ clearInterval(tmr);const tk=()=>{const el=$("#tm");if(el){const s=Math.max(0,Math.floor((Date.now()-new Date(e.started_at))/1e3)),f=n=>String(n).padStart(2,"0");el.textContent=f(s/3600|0)+":"+f(s/60%60|0)+":"+f(s%60)}};tk();tmr=setInterval(tk,1e3);foot()}
+function foot(){const c=cur(),all=F.sab.every((s,i)=>F.rez.some(r=>r.ordine===i+1&&r.rezultat==="ok")),ft=$("#ft");if(!ft)return;
+ if(c.length){const okN=c.every(n=>n.descriere.trim()&&(!S.poze_obligatorii||n.asm_poze.some(p=>p.tip==="inainte")));ft.innerHTML=`<button class="btn red" data-a="send" ${okN?"":"disabled"} title="${okN?"":"Fiecare neregulă are nevoie de descriere și poză"}">Trimite la remediere</button>`}
+ else ft.innerHTML=`<button class="btn" data-a="fin" ${all?"":"disabled"}>${F.e.tip==="ctc"?"Acordă aviz CTC":"Trimite în Depozit central"}</button>`}
+async function addNer(txt){const r=await sb.from("asm_nereguli").insert({etapa_id:F.e.id,asm_produs_id:F.e.asm_produs_id,criteriu_text:txt,descriere:""});if(r.error)return toast(r.error.message,1);fisa(F.e.id)}
+async function setRez(i,v){const s=F.sab[i],has=cur().filter(n=>n.criteriu_text===s.text);
+ if(v==="ok"&&has.length){if(!confirm("Neregulile notate pentru acest criteriu vor fi șterse. Continui?"))return;await sb.from("asm_nereguli").delete().eq("etapa_id",F.e.id).eq("criteriu_text",s.text)}
+ const r=await sb.from("asm_checklist_rezultate").upsert({etapa_id:F.e.id,sablon_id:s.id,text_criteriu:s.text,ordine:i+1,rezultat:v},{onConflict:"etapa_id,ordine"});if(r.error)return toast(r.error.message,1);
+ if(v==="nok"&&!has.length){await addNer(s.text);return}fisa(F.e.id)}
+async function comp(f){const b=await createImageBitmap(f),k=Math.min(1,1600/Math.max(b.width,b.height)),c=document.createElement("canvas");c.width=Math.round(b.width*k);c.height=Math.round(b.height*k);c.getContext("2d").drawImage(b,0,0,c.width,c.height);return new Promise(r=>c.toBlob(r,"image/jpeg",.8))}
+async function foto(inp){const f=inp.files[0];if(!f)return;toast("Se încarcă poza...");const bl=await comp(f),path=`${F.e.asm_produs_id}/${inp.dataset.id}/${Date.now()}.jpg`;
+ const u=await sb.storage.from(B).upload(path,bl,{contentType:"image/jpeg"});if(u.error)return toast(u.error.message,1);
+ const r=await sb.from("asm_poze").insert({neregula_id:inp.dataset.id,tip:inp.dataset.tip,storage_path:path});if(r.error)return toast(r.error.message,1);
+ F.e.tip==="remediere"?rem(F.e.id):fisa(F.e.id)}
+
+/* ---------- FIȘĂ REMEDIERE ---------- */
+async function rem(id){
+ if(!await loadF(id))return;const{e,p}=F;
+ $("#c").innerHTML=`<div class="card"><div class="row"><div>${prodTxt(p)}<div class="mut">Remediere · început ${dt(e.started_at)}</div></div><div style="text-align:right"><div class="timer" id="tm"></div></div></div></div>
+ ${F.ner.map(n=>`<div class="card"><div class="mut">${esc(n.criteriu_text||"În afara checklist-ului")}</div><div style="margin:4px 0"><b>${esc(n.descriere)}</b></div><div class="ph">${imgs(n,"inainte")}</div>
+ <div class="row"><label><input type="checkbox" style="width:auto" id="rc-${n.id}" data-c="rd" data-id="${n.id}" ${n.status==="remediata"?"checked":""}> Remediată</label>${fotoBtn(n.id,"dupa","Poză după")}</div><div class="ph">${imgs(n,"dupa")}</div>
+ <input id="nt-${n.id}" data-c="rnota" data-id="${n.id}" placeholder="Notă remediere (opțional)" value="${esc(n.nota_remediere||"")}"></div>`).join("")||'<div class="mut">Nu există nereguli înregistrate.</div>'}
+ <div class="card"><textarea id="rn" placeholder="Notă generală (opțional)"></textarea></div>
+ <div class="foot"><button class="btn gh" data-a="back">← Înapoi</button><button class="btn" data-a="remfin" ${F.ner.every(n=>n.status==="remediata")?"":"disabled"}>Trimite în Depozit central</button></div>`;
+ clearInterval(tmr);const tk=()=>{const el=$("#tm");if(el)el.textContent=dur(Date.now()-new Date(e.started_at))};tk();tmr=setInterval(tk,3e4)}
+
+/* ---------- ADMIN ---------- */
+let stF="",stQ="";
+async function vStadii(c){
+ const{data}=await sb.from("asm_produse").select("*").order("updated_at",{ascending:false}).limit(500),all=data||[],h=3600e3,now=Date.now();
+ const late=all.filter(p=>(["in_asamblare","in_remediere"].includes(p.stadiu)&&now-new Date(p.updated_at)>S.prag_alerta_ore*h)||(p.stadiu==="asteapta_ctc"&&now-new Date(p.updated_at)>S.ctc_alerta_zile*24*h)).length;
+ c.innerHTML=`${late?`<div class="al">⚠️ ${late} produse depășesc pragul de timp (în lucru > ${S.prag_alerta_ore} h sau CTC > ${S.ctc_alerta_zile} zile).</div>`:""}
+ <div class="kpis">${Object.keys(ST).map(k=>`<button class="kpi ${stF===k?"on":""}" data-a="kpi" data-s="${k}"><span class="pill p-${k}">${ST[k]}</span><b>${all.filter(p=>p.stadiu===k).length}</b></button>`).join("")}</div>
+ <div class="card"><input id="sq" placeholder="Caută VIN (parțial)..." value="${esc(stQ)}" style="max-width:300px;margin-bottom:8px"><div class="wrap"><table><thead><tr><th>VIN</th><th>Model</th><th>Culoare</th><th>Stadiu</th><th>De cât timp</th><th>Operator</th><th>Remedieri</th><th></th></tr></thead><tbody id="tb"></tbody></table></div></div>`;
+ const draw=()=>{const q=stQ.toLowerCase();$("#tb").innerHTML=all.filter(p=>(!stF||p.stadiu===stF)&&(p.vin||"").toLowerCase().includes(q)).map(p=>`<tr><td class="mono">${esc(p.vin||"—")}</td><td>${esc(p.model||"—")}</td><td>${esc(p.culoare||"—")}</td><td><span class="pill p-${p.stadiu}">${ST[p.stadiu]}</span></td><td>${dur(now-new Date(p.updated_at))}</td><td>${p.operator_curent?esc(nm(p.operator_curent)):"—"}</td><td>${p.nr_remedieri}</td><td><button class="btn gh sm" data-a="hist" data-id="${p.id}">Istoric</button> ${p.operator_curent?`<button class="btn gh sm" data-a="elib" data-id="${p.id}">Eliberează</button>`:""}${p.stadiu==="ctc_avizat"?`<button class="btn gh sm" data-a="revoc" data-id="${p.id}">Revocă aviz</button>`:""}</td></tr>`).join("")||'<tr><td colspan="8" class="mut">Niciun produs.</td></tr>'};
+ draw();$("#sq").oninput=e=>{stQ=e.target.value;draw()}}
+async function ist(id){
+ const[ev,et,lg]=await Promise.all([sb.from("asm_evenimente").select("*").eq("asm_produs_id",id).order("created_at"),sb.from("asm_etape").select("*").eq("asm_produs_id",id).order("started_at"),sb.rpc("asm_logistic",{p_asm:id})]);
+ const l=(lg.data||[])[0],sit=!l?"În Depozit central / în flux":l.data_vanzare?"Vândut":l.status_linie==="trimis"?"Expediat către "+(l.magazin||"—"):"În Depozit central";
+ const o=document.createElement("div");o.className="ov";o.innerHTML=`<div><div class="row"><h3 style="margin:0">Istoric produs</h3><button class="btn gh sm" data-a="close">Închide</button></div><p class="mut">Situație: <b>${esc(sit)}</b></p>
+ <div class="tl">${(ev.data||[]).map(x=>`<div>${dt(x.created_at)} · <b>${esc(EV[x.tip]||x.tip)}</b> · ${esc(nm(x.user_id))}${x.detalii?` <span class="mut">(${esc(x.detalii)})</span>`:""}</div>`).join("")||"<div>Fără evenimente.</div>"}</div>
+ <h4>Durate etape</h4><div class="tl">${(et.data||[]).map(x=>`<div>${x.tip} · ${esc(nm(x.user_id))} · ${x.ended_at?dur(x.durata_sec*1e3)+" ("+(x.rezultat||"")+")":"în curs"}</div>`).join("")}</div></div>`;document.body.appendChild(o)}
+async function vCheck(c){
+ const{data}=await sb.from("asm_checklist_sabloane").select("*").order("ordine"),d=data||[];
+ c.innerHTML=[["asamblare","Criterii asamblare"],["ctc","Criterii CTC"]].map(([t,l])=>`<div class="card"><h3 style="margin-top:0">${l}</h3>${d.filter(x=>x.tip===t).map(x=>`<div class="row" style="margin-bottom:6px;flex-wrap:nowrap"><input type="number" style="width:64px" data-c="sab" data-f="ordine" data-id="${x.id}" value="${x.ordine}"><input data-c="sab" data-f="text" data-id="${x.id}" value="${esc(x.text)}"><label style="white-space:nowrap"><input type="checkbox" style="width:auto" data-c="sab" data-f="activ" data-id="${x.id}" ${x.activ?"checked":""}> activ</label><button class="btn gh sm" data-a="delsab" data-id="${x.id}" title="Șterge (istoricul rămâne)">✕</button></div>`).join("")||'<div class="mut">Niciun criteriu.</div>'}
+ <div class="row" style="margin-top:8px;flex-wrap:nowrap"><input id="ns-${t}" placeholder="Criteriu nou..."><button class="btn" data-a="addsab" data-t="${t}">Adaugă</button></div></div>`).join("")+'<div class="mut">Modificările se aplică fișelor deschise ulterior. Rezultatele deja salvate păstrează textul criteriului de la data verificării.</div>'}
+function vSet(c){const f=(k,l,ty="number")=>`<div style="margin-bottom:10px"><div class="mut">${l}</div>${ty==="checkbox"?`<input type="checkbox" style="width:auto" data-c="set" data-f="${k}" ${S[k]?"checked":""}>`:`<input type="number" min="1" data-c="set" data-f="${k}" value="${S[k]}">`}</div>`;
+ c.innerHTML=`<div class="card" style="max-width:420px">${f("max_in_lucru","Produse simultane per utilizator")}${f("prag_alerta_ore","Alertă produs în lucru (ore)")}${f("ctc_alerta_zile","Alertă produs care așteaptă CTC (zile)")}${f("poze_obligatorii","Poză obligatorie la fiecare neregulă","checkbox")}</div>`}
+boot0();
+</script>
+</body>
+</html>
