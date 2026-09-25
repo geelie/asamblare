@@ -15,6 +15,7 @@
       rel="stylesheet"
     />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
     <style>
       /* Design tokens preluate din aplicația de distribuții */
       :root {
@@ -714,7 +715,8 @@
         names = {},
         F = null,
         tmr = null,
-        rt = null;
+        rt = null,
+        recoverMode = false;
       const nm = (id) => names[id] || "—",
         dt = (t) => (t ? new Date(t).toLocaleString("ro-RO") : "—");
       function dur(ms) {
@@ -746,6 +748,35 @@
       }
 
       /* ---------- AUTH ---------- */
+      function renderSetPassword() {
+        clearInterval(tmr);
+        $("#app").innerHTML =
+          `<div class="auth"><h2>⚙️ Asamblare</h2><div class="card">
+ <p class="mut">Alege o parolă nouă pentru cont.</p>
+ <input id="pw1" type="password" placeholder="Parolă nouă (minim 6 caractere)" autocomplete="new-password">
+ <input id="pw2" type="password" placeholder="Confirmă parola nouă" autocomplete="new-password">
+ <button class="btn" style="width:100%" id="go2">Salvează parola</button></div></div>`;
+        $("#go2").onclick = async () => {
+          const a = $("#pw1").value,
+            b = $("#pw2").value;
+          if (a.length < 6)
+            return toast("Parola trebuie să aibă minim 6 caractere.", 1);
+          if (a !== b) return toast("Parolele introduse nu coincid.", 1);
+          const btn = $("#go2");
+          btn.disabled = true;
+          btn.textContent = "Se salvează...";
+          const r = await sb.auth.updateUser({ password: a });
+          if (r.error) {
+            btn.disabled = false;
+            btn.textContent = "Salvează parola";
+            return toast(r.error.message, 1);
+          }
+          recoverMode = false;
+          await sb.auth.signOut();
+          authView("login");
+          toast("Parolă actualizată. Autentifică-te cu noua parolă.");
+        };
+      }
       function authView(mode = "login") {
         clearInterval(tmr);
         $("#app").innerHTML =
@@ -793,6 +824,7 @@
         };
       }
       async function boot() {
+        if (recoverMode) return;
         const {
           data: { session },
         } = await sb.auth.getSession();
@@ -853,11 +885,20 @@
         }
       }
       sb.auth.onAuthStateChange((ev, ss) => {
+        if (ev === "PASSWORD_RECOVERY") {
+          recoverMode = true;
+          renderSetPassword();
+          return;
+        }
         if (ev === "SIGNED_OUT") {
           me = null;
           F = null;
           setTimeout(boot0, 0);
-        } else if (ev === "SIGNED_IN" && (!me || !ss || ss.user.id !== me.id))
+        } else if (
+          ev === "SIGNED_IN" &&
+          (!me || !ss || ss.user.id !== me.id) &&
+          !recoverMode
+        )
           setTimeout(boot0, 0);
       });
 
@@ -889,6 +930,7 @@
           rem(await rpc("asm_preia_remediere", { p_asm: d.id })),
         pctc: async (d) => fisa(await rpc("asm_ctc_preia", { p_asm: d.id })),
         hist: (d) => ist(d.id),
+        pdf: (d) => genereazaFisaPdf(d.id),
         elib: async (d) => {
           const m = prompt("Motiv eliberare:");
           if (m === null) return;
@@ -1170,7 +1212,7 @@
         const { e, p } = F;
         const prev = F.ner.filter((n) => n.etapa_id !== e.id);
         $("#c").innerHTML =
-          `<div class="card"><div class="row"><div>${prodTxt(p)}<div class="mut">${e.tip === "ctc" ? "Verificare CTC" : "Asamblare"} · început ${dt(e.started_at)}</div></div><div style="text-align:right"><div class="timer" id="tm"></div><div class="mut">de la preluare</div></div></div></div>
+          `<div class="card"><div class="row"><div>${prodTxt(p)}<div class="mut">${e.tip === "ctc" ? "Verificare CTC" : "Asamblare"} · început ${dt(e.started_at)}</div></div>${e.tip === "ctc" ? "" : '<div style="text-align:right"><div class="timer" id="tm"></div><div class="mut">de la preluare</div></div>'}</div></div>
  ${e.tip === "ctc" && prev.length ? `<div class="al"><b>Reverificare</b> – defecte raportate anterior:<br>${prev.map((n) => "• " + esc(n.criteriu_text ? n.criteriu_text + ": " : "") + esc(n.descriere) + (n.status === "remediata" ? " ✔ remediat" : "")).join("<br>")}</div>` : ""}
  ${F.sab.length ? "" : '<div class="al">Nu există criterii de checklist definite. Un Admin trebuie să le adauge din tabul „Checklist".</div>'}
  ${F.sab
@@ -1191,24 +1233,26 @@
  <button class="btn gh sm" data-a="ner">+ Neregulă în afara checklist-ului</button>
  <div class="foot"><div><button class="btn gh" data-a="back">← Înapoi</button> ${e.tip === "asamblare" ? '<button class="btn gh" data-a="renunta">Renunță</button>' : ""}</div><div id="ft"></div></div>`;
         clearInterval(tmr);
-        const tk = () => {
-          const el = $("#tm");
-          if (el) {
-            const s = Math.max(
-                0,
-                Math.floor((Date.now() - new Date(e.started_at)) / 1e3),
-              ),
-              f = (n) => String(n).padStart(2, "0");
-            el.textContent =
-              f((s / 3600) | 0) +
-              ":" +
-              f(((s / 60) % 60) | 0) +
-              ":" +
-              f(s % 60);
-          }
-        };
-        tk();
-        tmr = setInterval(tk, 1e3);
+        if (e.tip !== "ctc") {
+          const tk = () => {
+            const el = $("#tm");
+            if (el) {
+              const s = Math.max(
+                  0,
+                  Math.floor((Date.now() - new Date(e.started_at)) / 1e3),
+                ),
+                f = (n) => String(n).padStart(2, "0");
+              el.textContent =
+                f((s / 3600) | 0) +
+                ":" +
+                f(((s / 60) % 60) | 0) +
+                ":" +
+                f(s % 60);
+            }
+          };
+          tk();
+          tmr = setInterval(tk, 1e3);
+        }
         foot();
       }
       function foot() {
@@ -1311,7 +1355,7 @@
         if (!(await loadF(id))) return;
         const { e, p } = F;
         $("#c").innerHTML =
-          `<div class="card"><div class="row"><div>${prodTxt(p)}<div class="mut">Remediere · început ${dt(e.started_at)}</div></div><div style="text-align:right"><div class="timer" id="tm"></div></div></div></div>
+          `<div class="card"><div class="row"><div>${prodTxt(p)}<div class="mut">Remediere · început ${dt(e.started_at)}</div></div></div></div>
  ${
    F.ner
      .map(
@@ -1326,12 +1370,6 @@
  <div class="card"><textarea id="rn" placeholder="Notă generală (opțional)"></textarea></div>
  <div class="foot"><button class="btn gh" data-a="back">← Înapoi</button><button class="btn" data-a="remfin" ${F.ner.every((n) => n.status === "remediata") ? "" : "disabled"}>Trimite în Depozit central</button></div>`;
         clearInterval(tmr);
-        const tk = () => {
-          const el = $("#tm");
-          if (el) el.textContent = dur(Date.now() - new Date(e.started_at));
-        };
-        tk();
-        tmr = setInterval(tk, 3e4);
       }
 
       /* ---------- ADMIN ---------- */
@@ -1360,7 +1398,8 @@
        `<button class="kpi ${stF === k ? "on" : ""}" data-a="kpi" data-s="${k}"><span class="pill p-${k}">${ST[k]}</span><b>${all.filter((p) => p.stadiu === k).length}</b></button>`,
    )
    .join("")}</div>
- <div class="card"><input id="sq" placeholder="Caută VIN (parțial)..." value="${esc(stQ)}" style="max-width:300px;margin-bottom:8px"><div class="wrap"><table><thead><tr><th>VIN</th><th>Model</th><th>Culoare</th><th>Stadiu</th><th>De cât timp</th><th>Operator</th><th>Remedieri</th><th></th></tr></thead><tbody id="tb"></tbody></table></div></div>`;
+ <div class="card"><input id="sq" placeholder="Caută VIN (parțial)..." value="${esc(stQ)}" style="max-width:300px;margin-bottom:8px"><div class="wrap"><table><thead><tr><th>VIN</th><th>Model</th><th>Culoare</th><th>Stadiu</th><th>De cât timp</th><th>Operator</th><th>Remedieri</th><th></th></tr></thead><tbody id="tb"></tbody></table></div></div>
+ <div class="card"><h4 style="margin:0 0 8px">Indicatori (ultimele 30 zile)</h4><div id="indic" class="mut">Se calculează...</div></div>`;
         const draw = () => {
           const q = stQ.toLowerCase();
           $("#tb").innerHTML =
@@ -1382,7 +1421,69 @@
           stQ = e.target.value;
           draw();
         };
+        $("#indic").innerHTML = "Se calculează...";
+        computeIndicatori().then((x) => {
+          const el = $("#indic");
+          if (el) el.innerHTML = x;
+        });
       }
+
+      async function computeIndicatori() {
+        const de = new Date(Date.now() - 30 * 864e5).toISOString();
+        const { data: et } = await sb
+          .from("asm_etape")
+          .select("asm_produs_id,tip,rezultat,durata_sec,ended_at")
+          .not("ended_at", "is", null)
+          .gte("ended_at", de);
+        const rows = et || [];
+        const avg = (arr) =>
+          arr.length
+            ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length)
+            : null;
+        const asmOk = rows
+          .filter((r) => r.tip === "asamblare" && r.rezultat === "ok")
+          .map((r) => r.durata_sec);
+        const remOk = rows
+          .filter((r) => r.tip === "remediere" && r.rezultat === "ok")
+          .map((r) => r.durata_sec);
+        const ctcOk = rows.filter(
+          (r) => r.tip === "ctc" && r.rezultat === "ok",
+        );
+        let pctPrima = "—";
+        if (ctcOk.length) {
+          const ids = [...new Set(ctcOk.map((r) => r.asm_produs_id))];
+          const { data: remAny } = await sb
+            .from("asm_etape")
+            .select("asm_produs_id")
+            .eq("tip", "remediere")
+            .in("asm_produs_id", ids);
+          const cuRemediere = new Set(
+            (remAny || []).map((r) => r.asm_produs_id),
+          );
+          const primaOk = ctcOk.filter(
+            (r) => !cuRemediere.has(r.asm_produs_id),
+          ).length;
+          pctPrima = Math.round((primaOk / ctcOk.length) * 100) + "%";
+        }
+        const { data: nok } = await sb
+          .from("asm_checklist_rezultate")
+          .select("text_criteriu")
+          .eq("rezultat", "nok")
+          .gte("bifat_la", de)
+          .limit(3000);
+        let topCrit = "—";
+        if (nok && nok.length) {
+          const cnt = {};
+          nok.forEach(
+            (r) => (cnt[r.text_criteriu] = (cnt[r.text_criteriu] || 0) + 1),
+          );
+          topCrit = Object.entries(cnt).sort((a, b) => b[1] - a[1])[0][0];
+        }
+        const card = (l, v) =>
+          `<div><div class="mut">${l}</div><b style="font-size:20px">${v}</b></div>`;
+        return `<div class="kpis" style="margin-top:0">${card("Timp mediu asamblare", asmOk.length ? dur(avg(asmOk) * 1e3) : "—")}${card("Aprobate din prima la CTC", pctPrima)}${card("Timp mediu remediere", remOk.length ? dur(avg(remOk) * 1e3) : "—")}${card("Criteriu cu cele mai multe NOK", esc(topCrit))}</div>`;
+      }
+
       async function ist(id) {
         const [ev, et, lg] = await Promise.all([
           sb
@@ -1407,10 +1508,239 @@
                 : "În Depozit central";
         const o = document.createElement("div");
         o.className = "ov";
-        o.innerHTML = `<div><div class="row"><h3 style="margin:0">Istoric produs</h3><button class="btn gh sm" data-a="close">Închide</button></div><p class="mut">Situație: <b>${esc(sit)}</b></p>
+        o.innerHTML = `<div><div class="row"><h3 style="margin:0">Istoric produs</h3><div><button class="btn gh sm" data-a="pdf" data-id="${id}">Fișă PDF</button> <button class="btn gh sm" data-a="close">Închide</button></div></div><p class="mut">Situație: <b>${esc(sit)}</b></p>
  <div class="tl">${(ev.data || []).map((x) => `<div>${dt(x.created_at)} · <b>${esc(EV[x.tip] || x.tip)}</b> · ${esc(nm(x.user_id))}${x.detalii ? ` <span class="mut">(${esc(x.detalii)})</span>` : ""}</div>`).join("") || "<div>Fără evenimente.</div>"}</div>
  <h4>Durate etape</h4><div class="tl">${(et.data || []).map((x) => `<div>${x.tip} · ${esc(nm(x.user_id))} · ${x.ended_at ? dur(x.durata_sec * 1e3) + " (" + (x.rezultat || "") + ")" : "în curs"}</div>`).join("")}</div></div>`;
         document.body.appendChild(o);
+      }
+      async function fetchImgDataUrl(url) {
+        try {
+          const r = await fetch(url);
+          const b = await r.blob();
+          return await new Promise((res, rej) => {
+            const fr = new FileReader();
+            fr.onload = () => res(fr.result);
+            fr.onerror = rej;
+            fr.readAsDataURL(b);
+          });
+        } catch (e) {
+          return null;
+        }
+      }
+      function imgDims(u) {
+        return new Promise((res) => {
+          const im = new Image();
+          im.onload = () =>
+            res({ w: im.naturalWidth || 4, h: im.naturalHeight || 3 });
+          im.onerror = () => res({ w: 4, h: 3 });
+          im.src = u;
+        });
+      }
+      async function genereazaFisaPdf(asmId) {
+        if (!window.jspdf)
+          return toast(
+            "Biblioteca PDF nu s-a încărcat. Verifică conexiunea și reîncearcă.",
+            1,
+          );
+        toast("Se generează fișa PDF...");
+        const [{ data: prod }, { data: etape }, lg] = await Promise.all([
+          sb.from("asm_produse").select("*").eq("id", asmId).single(),
+          sb
+            .from("asm_etape")
+            .select("*")
+            .eq("asm_produs_id", asmId)
+            .order("started_at"),
+          sb.rpc("asm_logistic", { p_asm: asmId }),
+        ]);
+        if (!prod) return toast("Produsul nu a fost găsit.", 1);
+        const etapeIds = (etape || []).map((e) => e.id),
+          etapaTip = new Map((etape || []).map((e) => [e.id, e.tip]));
+        const [{ data: rez }, { data: ner }] = await Promise.all([
+          etapeIds.length
+            ? sb
+                .from("asm_checklist_rezultate")
+                .select("*")
+                .in("etapa_id", etapeIds)
+                .order("ordine")
+            : Promise.resolve({ data: [] }),
+          sb
+            .from("asm_nereguli")
+            .select("*,asm_poze(*)")
+            .eq("asm_produs_id", asmId)
+            .order("created_at"),
+        ]);
+        const paths = (ner || []).flatMap((n) =>
+          n.asm_poze.map((x) => x.storage_path),
+        );
+        let urls = {};
+        if (paths.length) {
+          const { data } = await sb.storage
+            .from(B)
+            .createSignedUrls(paths, 3600);
+          (data || []).forEach((u) => (urls[u.path] = u.signedUrl));
+        }
+        const imgCache = {};
+        for (const path of paths) {
+          const u = urls[path];
+          if (!u) continue;
+          const d = await fetchImgDataUrl(u);
+          if (d) imgCache[path] = d;
+        }
+
+        const { jsPDF } = window.jspdf,
+          doc = new jsPDF({ unit: "mm", format: "a4" }),
+          PW = 210,
+          MX = 15;
+        let y = 18;
+        const line = () => {
+          doc.setDrawColor(226, 231, 235);
+          doc.line(MX, y, PW - MX, y);
+          y += 5;
+        };
+        const ensure = (need) => {
+          if (y + need > 282) {
+            doc.addPage();
+            y = 18;
+          }
+        };
+        const h = (t, size = 13) => {
+          ensure(9);
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(size);
+          doc.setTextColor(15, 20, 25);
+          doc.text(t, MX, y);
+          y += 6;
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(30, 41, 59);
+        };
+        const p = (t, size = 10) => {
+          doc.setFontSize(size);
+          const lines = doc.splitTextToSize(String(t), PW - 2 * MX);
+          ensure(lines.length * 5 + 2);
+          doc.text(lines, MX, y);
+          y += lines.length * 5 + 2;
+        };
+        const TL = {
+          asamblare: "Asamblare",
+          remediere: "Remediere",
+          ctc: "Verificare CTC",
+        };
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(16);
+        doc.setTextColor(15, 20, 25);
+        doc.text("Fișă produs — Asamblare", MX, y);
+        y += 8;
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.setTextColor(100, 116, 139);
+        doc.text(
+          `Generată ${new Date().toLocaleString("ro-RO")} de ${nm(me.id)}`,
+          MX,
+          y,
+        );
+        y += 8;
+        doc.setTextColor(30, 41, 59);
+        line();
+
+        h("Date produs");
+        p(`VIN: ${prod.vin || "—"}`);
+        p(`Model: ${prod.model || "—"}   Culoare: ${prod.culoare || "—"}`);
+        p(
+          `Stadiu curent: ${ST[prod.stadiu] || prod.stadiu}   Remedieri: ${prod.nr_remedieri}`,
+        );
+        const l = (lg.data || [])[0],
+          sit = !l
+            ? "În Depozit central / în flux"
+            : l.data_vanzare
+              ? "Vândut"
+              : l.status_linie === "trimis"
+                ? "Expediat către " + (l.magazin || "—")
+                : "În Depozit central";
+        p(`Situație logistică: ${sit}`);
+        y += 2;
+        line();
+
+        h("Traseu");
+        (etape || []).forEach((e) => {
+          p(
+            `${TL[e.tip] || e.tip} — ${nm(e.user_id)} — ${dt(e.started_at)}${e.ended_at ? " → " + dt(e.ended_at) + " (" + dur(e.durata_sec * 1e3) + ", " + (e.rezultat || "—") + ")" : " (în curs)"}${e.nota ? " — notă: " + e.nota : ""}`,
+          );
+        });
+        y += 2;
+        line();
+
+        h("Checklist");
+        const byEtapa = {};
+        (rez || []).forEach((r) => {
+          (byEtapa[r.etapa_id] = byEtapa[r.etapa_id] || []).push(r);
+        });
+        let vreunChecklist = false;
+        (etape || []).forEach((e) => {
+          const rs = byEtapa[e.id] || [];
+          if (!rs.length) return;
+          vreunChecklist = true;
+          ensure(6);
+          doc.setFont("helvetica", "bold");
+          p(`${TL[e.tip] || e.tip} — ${dt(e.started_at)}`);
+          doc.setFont("helvetica", "normal");
+          rs.forEach((r) =>
+            p(`${r.rezultat === "ok" ? "OK" : "NOK"} — ${r.text_criteriu}`),
+          );
+        });
+        if (!vreunChecklist) p("Fără rezultate de checklist înregistrate.");
+        y += 2;
+        line();
+
+        h("Nereguli constatate");
+        if (!(ner || []).length) p("Nicio neregulă înregistrată.");
+        for (const n of ner || []) {
+          ensure(14);
+          doc.setFont("helvetica", "bold");
+          p(
+            `${{ asamblare: "Din asamblare", remediere: "Din remediere", ctc: "Din CTC" }[etapaTip.get(n.etapa_id)] || ""} — ${n.criteriu_text || "În afara checklist-ului"}`,
+          );
+          doc.setFont("helvetica", "normal");
+          p(n.descriere || "—");
+          p(
+            `Status: ${n.status === "remediata" ? "Remediată" : "Deschisă"}${n.remediata_de ? " de " + nm(n.remediata_de) + " la " + dt(n.remediata_la) : ""}${n.nota_remediere ? " — notă: " + n.nota_remediere : ""}`,
+          );
+          for (const [label, arr] of [
+            ["Înainte", n.asm_poze.filter((x) => x.tip === "inainte")],
+            ["După", n.asm_poze.filter((x) => x.tip === "dupa")],
+          ]) {
+            if (!arr.length) continue;
+            ensure(6);
+            doc.setFontSize(9);
+            doc.setTextColor(100, 116, 139);
+            doc.text(label, MX, y);
+            y += 4;
+            doc.setTextColor(30, 41, 59);
+            let x = MX;
+            for (const ph of arr) {
+              const d = imgCache[ph.storage_path];
+              if (!d) continue;
+              ensure(36);
+              if (x + 32 > PW - MX) {
+                x = MX;
+                y += 36;
+              }
+              try {
+                const dm = await imgDims(d),
+                  w = 32,
+                  hh = Math.min(32, (w * dm.h) / dm.w);
+                doc.addImage(d, "JPEG", x, y, w, hh);
+              } catch (er) {}
+              x += 36;
+            }
+            y += 36;
+          }
+          y += 2;
+        }
+
+        doc.save(
+          `fisa-asamblare-${String(prod.vin || asmId).replace(/[^a-zA-Z0-9-]/g, "")}.pdf`,
+        );
       }
       async function vCheck(c) {
         const { data } = await sb
