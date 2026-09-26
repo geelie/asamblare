@@ -720,9 +720,14 @@
         F = null,
         tmr = null,
         rt = null,
-        recoverMode = false;
+        recoverMode = false,
+        ultimulModel = "";
       const nm = (id) => names[id] || "—",
         dt = (t) => (t ? new Date(t).toLocaleString("ro-RO") : "—");
+      const modelKey = (m) => {
+        const t = (m || "").trim().toUpperCase().replace(/\s+/g, " ");
+        return t || null;
+      };
       function dur(ms) {
         const m = Math.floor(ms / 6e4);
         return m < 60
@@ -997,19 +1002,61 @@
         addsab: async (d) => {
           const t = $("#ns-" + d.t).value.trim();
           if (!t) return;
-          const mx = Math.max(
-            0,
-            ...(
-              await sb
-                .from("asm_checklist_sabloane")
-                .select("ordine")
-                .eq("tip", d.t)
-            ).data.map((x) => x.ordine),
-          );
-          const r = await sb
+          let model = null,
+            mk = null;
+          if (d.t === "asamblare") {
+            model = $("#nm-asamblare").value.trim();
+            if (!model)
+              return toast("Completează modelul pentru acest criteriu.", 1);
+            mk = modelKey(model);
+          }
+          let q = sb
             .from("asm_checklist_sabloane")
-            .insert({ tip: d.t, text: t, ordine: mx + 1 });
+            .select("ordine")
+            .eq("tip", d.t);
+          if (d.t === "asamblare") q = q.eq("model_key", mk);
+          const { data: ex } = await q;
+          const mx = Math.max(0, ...(ex || []).map((x) => x.ordine));
+          const ins = { tip: d.t, text: t, ordine: mx + 1 };
+          if (d.t === "asamblare") ins.model = model;
+          const r = await sb.from("asm_checklist_sabloane").insert(ins);
           if (r.error) return toast(r.error.message, 1);
+          if (d.t === "asamblare") {
+            ultimulModel = model;
+            $("#ns-asamblare").value = "";
+          } else $("#ns-ctc").value = "";
+          go("checklist");
+        },
+        dupmodel: async (d) => {
+          const noul = (
+            prompt("Copiază criteriile la modelul (numele exact):") || ""
+          ).trim();
+          if (!noul) return;
+          const nmk = modelKey(noul);
+          const { data: srcRows } = await sb
+            .from("asm_checklist_sabloane")
+            .select("*")
+            .eq("tip", "asamblare")
+            .eq("model_key", d.key)
+            .order("ordine");
+          if (!srcRows || !srcRows.length) return toast("Nimic de copiat.", 1);
+          const { data: destEx } = await sb
+            .from("asm_checklist_sabloane")
+            .select("ordine")
+            .eq("tip", "asamblare")
+            .eq("model_key", nmk);
+          let next = Math.max(0, ...(destEx || []).map((x) => x.ordine));
+          const rows = srcRows.map((x) => ({
+            tip: "asamblare",
+            model: noul,
+            text: x.text,
+            ordine: ++next,
+            activ: x.activ,
+          }));
+          const r = await sb.from("asm_checklist_sabloane").insert(rows);
+          if (r.error) return toast(r.error.message, 1);
+          ultimulModel = noul;
+          toast(`Criterii copiate la modelul „${noul}".`);
           go("checklist");
         },
         close: () => document.querySelector(".ov")?.remove(),
@@ -1051,17 +1098,15 @@
               p_nota: t.value,
             });
         } else if (c === "sab") {
+          const f = t.dataset.f,
+            val =
+              f === "activ" ? t.checked : f === "ordine" ? +t.value : t.value;
           const r = await sb
             .from("asm_checklist_sabloane")
-            .update(
-              t.dataset.f === "activ"
-                ? { activ: t.checked }
-                : t.dataset.f === "ordine"
-                  ? { ordine: +t.value }
-                  : { text: t.value },
-            )
+            .update({ [f]: val })
             .eq("id", t.dataset.id);
-          if (r.error) toast(r.error.message, 1);
+          if (r.error) return toast(r.error.message, 1);
+          if (f === "model") go("checklist");
         } else if (c === "set") {
           const r = await sb
             .from("asm_setari")
@@ -1164,13 +1209,16 @@
           return false;
         }
         const tipS = e.tip === "ctc" ? "ctc" : "asamblare";
+        let sabQ = sb
+          .from("asm_checklist_sabloane")
+          .select("*")
+          .eq("tip", tipS)
+          .eq("activ", true)
+          .order("ordine");
+        if (tipS === "asamblare")
+          sabQ = sabQ.eq("model_key", modelKey(e.asm_produse.model));
         const [s, r, n] = await Promise.all([
-          sb
-            .from("asm_checklist_sabloane")
-            .select("*")
-            .eq("tip", tipS)
-            .eq("activ", true)
-            .order("ordine"),
+          sabQ,
           sb.from("asm_checklist_rezultate").select("*").eq("etapa_id", id),
           sb
             .from("asm_nereguli")
@@ -1756,31 +1804,87 @@
         const { data } = await sb
             .from("asm_checklist_sabloane")
             .select("*")
+            .order("model_key", { nullsFirst: true })
             .order("ordine"),
           d = data || [];
-        c.innerHTML =
-          [
-            ["asamblare", "Criterii asamblare"],
-            ["ctc", "Criterii CTC"],
-          ]
-            .map(
-              ([
-                t,
-                l,
-              ]) => `<div class="card"><h3 style="margin-top:0">${l}</h3>${
-                d
-                  .filter((x) => x.tip === t)
-                  .map(
-                    (x) =>
-                      `<div class="row" style="margin-bottom:6px;flex-wrap:nowrap"><input type="number" style="width:64px" data-c="sab" data-f="ordine" data-id="${x.id}" value="${x.ordine}"><input data-c="sab" data-f="text" data-id="${x.id}" value="${esc(x.text)}"><label style="white-space:nowrap"><input type="checkbox" style="width:auto" data-c="sab" data-f="activ" data-id="${x.id}" ${x.activ ? "checked" : ""}> activ</label><button class="btn gh sm" data-a="delsab" data-id="${x.id}" title="Șterge (istoricul rămâne)">✕</button></div>`,
-                  )
-                  .join("") || '<div class="mut">Niciun criteriu.</div>'
-              }
- <div class="row" style="margin-top:8px;flex-wrap:nowrap"><input id="ns-${t}" placeholder="Criteriu nou..."><button class="btn" data-a="addsab" data-t="${t}">Adaugă</button></div></div>`,
-            )
-            .join("") +
-          '<div class="mut">Modificările se aplică fișelor deschise ulterior. Rezultatele deja salvate păstrează textul criteriului de la data verificării.</div>';
+        const asmR = d.filter((x) => x.tip === "asamblare"),
+          ctcR = d.filter((x) => x.tip === "ctc");
+        const groups = [];
+        asmR.forEach((x) => {
+          const k = x.model_key || "";
+          if (!groups.some((g) => g.key === k))
+            groups.push({
+              key: k,
+              model: x.model,
+              rows: asmR.filter((y) => (y.model_key || "") === k),
+            });
+        });
+        const row = (x, showModel) =>
+          `<div class="row" style="margin-bottom:6px;flex-wrap:wrap;gap:6px"><input type="number" style="width:56px" data-c="sab" data-f="ordine" data-id="${x.id}" value="${x.ordine}">${showModel ? `<input data-c="sab" data-f="model" data-id="${x.id}" value="${esc(x.model || "")}" placeholder="Model" list="dl-modele" style="max-width:150px" autocomplete="off">` : ""}<input data-c="sab" data-f="text" data-id="${x.id}" value="${esc(x.text)}" style="flex:1;min-width:140px"><label style="white-space:nowrap"><input type="checkbox" style="width:auto" data-c="sab" data-f="activ" data-id="${x.id}" ${x.activ ? "checked" : ""}> activ</label><button class="btn gh sm" data-a="delsab" data-id="${x.id}" title="Șterge (istoricul rămâne)">✕</button></div>`;
+        c.innerHTML = `<div class="card"><h3 style="margin-top:0">Criterii asamblare — pe model</h3>
+ <div class="mut" style="margin-bottom:10px">Fiecare model are propria listă. La preluarea din Antedepozit, operatorul primește doar criteriile modelului produsului; dacă modelul nu are nicio listă activă, preluarea este blocată.</div>
+ ${
+   groups
+     .map(
+       (
+         g,
+       ) => `<div style="border-top:1px solid var(--line);padding-top:10px;margin-top:10px">
+   <div class="row" style="margin-bottom:6px"><h4 style="margin:0">${g.key ? esc(g.model) : '<span class="mut">Fără model — completează câmpul „Model" pe fiecare rând ca să se aplice</span>'}</h4>${g.key ? `<button class="btn gh sm" data-a="dupmodel" data-key="${esc(g.key)}">Copiază la alt model</button>` : ""}</div>
+   ${g.rows.map((x) => row(x, true)).join("")}
+ </div>`,
+     )
+     .join("") || '<div class="mut">Niciun criteriu de asamblare încă.</div>'
+ }
+ <div class="row" style="margin-top:14px;flex-wrap:wrap;gap:8px">
+   <input id="nm-asamblare" list="dl-modele" placeholder="Model (ex: RUZGAR)..." style="max-width:220px" value="${esc(ultimulModel)}" autocomplete="off">
+   <input id="ns-asamblare" list="dl-crit-asamblare" placeholder="Criteriu nou..." style="flex:1;min-width:140px" autocomplete="off">
+   <button class="btn" data-a="addsab" data-t="asamblare">Adaugă</button>
+ </div></div>
+ <div class="card"><h3 style="margin-top:0">Criterii CTC</h3>
+ ${ctcR.map((x) => row(x, false)).join("") || '<div class="mut">Niciun criteriu.</div>'}
+ <div class="row" style="margin-top:8px;flex-wrap:nowrap"><input id="ns-ctc" list="dl-crit-ctc" placeholder="Criteriu nou..." autocomplete="off"><button class="btn" data-a="addsab" data-t="ctc">Adaugă</button></div></div>
+ <datalist id="dl-modele"></datalist>
+ <datalist id="dl-crit-asamblare">${[
+   ...new Set(asmR.map((x) => x.text.trim()).filter(Boolean)),
+ ]
+   .sort((a, b) => a.localeCompare(b, "ro"))
+   .map((t) => `<option value="${esc(t)}">`)
+   .join("")}</datalist>
+ <datalist id="dl-crit-ctc">${[
+   ...new Set(ctcR.map((x) => x.text.trim()).filter(Boolean)),
+ ]
+   .sort((a, b) => a.localeCompare(b, "ro"))
+   .map((t) => `<option value="${esc(t)}">`)
+   .join("")}</datalist>
+ <div class="mut">Modificările se aplică fișelor deschise ulterior. Rezultatele deja salvate păstrează textul criteriului de la data verificării.</div>`;
+        refreshModeleDatalist("");
       }
+      let dlModeleT;
+      async function refreshModeleDatalist(q) {
+        let data = null;
+        try {
+          const res = await sb.rpc("asm_modele_antedepozit", { p_q: q });
+          data = res.data;
+          if (res.error) console.error(res.error);
+        } catch (err) {
+          console.error(err);
+        }
+        const dl = $("#dl-modele");
+        if (dl)
+          dl.innerHTML = (data || [])
+            .map((r) => `<option value="${esc(r.model)}">`)
+            .join("");
+      }
+      document.addEventListener("input", (e) => {
+        if (
+          e.target.getAttribute &&
+          e.target.getAttribute("list") === "dl-modele"
+        ) {
+          clearTimeout(dlModeleT);
+          const val = e.target.value;
+          dlModeleT = setTimeout(() => refreshModeleDatalist(val), 250);
+        }
+      });
       function vSet(c) {
         const f = (k, l, ty = "number") =>
           `<div style="margin-bottom:10px"><div class="mut">${l}</div>${ty === "checkbox" ? `<input type="checkbox" style="width:auto" data-c="set" data-f="${k}" ${S[k] ? "checked" : ""}>` : `<input type="number" min="1" data-c="set" data-f="${k}" value="${S[k]}">`}</div>`;
