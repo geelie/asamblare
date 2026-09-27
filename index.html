@@ -530,10 +530,15 @@
       th,
       td {
         text-align: left;
-        padding: 5px 10px;
+        padding: 4px 8px;
         border-bottom: 1px solid #eef1f3;
-        font-size: 13px;
+        font-size: 12.5px;
         white-space: nowrap;
+      }
+      #tb .btn.sm {
+        padding: 4px 8px;
+        min-height: 28px;
+        font-size: 11.5px;
       }
       .list-scroll thead th {
         position: sticky;
@@ -1036,6 +1041,18 @@
         checklist: vCheck,
         setari: vSet,
       };
+      function fitListScroll() {
+        document.querySelectorAll("#c .list-scroll").forEach((el) => {
+          el.style.maxHeight = "none";
+          const overflow =
+            document.documentElement.scrollHeight - window.innerHeight;
+          if (overflow > 0) {
+            const h = el.clientHeight - overflow - 8;
+            el.style.maxHeight = Math.max(150, h) + "px";
+          }
+        });
+      }
+      window.addEventListener("resize", fitListScroll);
       function go(t) {
         F = null;
         clearInterval(tmr);
@@ -1043,7 +1060,8 @@
         document
           .querySelectorAll("nav button")
           .forEach((b) => b.classList.toggle("on", b.dataset.t === t));
-        V[t]($("#c"));
+        V[t]($("#c")).then?.(fitListScroll);
+        fitListScroll();
       }
       const act = {
         tab: (d) => go(d.t),
@@ -1311,6 +1329,7 @@
               )
               .join("") ||
             '<div class="mut">Niciun produs în această listă.</div>';
+          fitListScroll();
         };
         draw();
         $("#lq").oninput = (e) => {
@@ -1629,6 +1648,7 @@
             : "Niciun produs";
           $("#pgPrev").disabled = stPage <= 1;
           $("#pgNext").disabled = stPage >= pages;
+          fitListScroll();
         };
         draw();
         $("#pgPrev").onclick = () => {
@@ -1648,6 +1668,7 @@
         computeIndicatori().then((x) => {
           const el = $("#indic");
           if (el) el.innerHTML = x;
+          fitListScroll();
         });
       }
 
