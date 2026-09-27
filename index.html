@@ -219,6 +219,33 @@
         font-size: 12px;
         flex: 0 0 auto;
       }
+      .add-row {
+        display: flex;
+        flex-wrap: nowrap;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 10px;
+      }
+      .add-row input {
+        padding: 6px 10px;
+        min-height: 32px;
+        font-size: 13px;
+      }
+      .add-row input#nm-asamblare {
+        width: 110px;
+        flex: 0 0 auto;
+      }
+      .add-row input#ns-asamblare,
+      .add-row input#ns-ctc {
+        flex: 1 1 auto;
+        min-width: 60px;
+      }
+      .add-row button.btn {
+        padding: 6px 12px;
+        min-height: 32px;
+        font-size: 13px;
+        flex: 0 0 auto;
+      }
       .model-toggle {
         border: 0;
         background: transparent;
@@ -788,6 +815,7 @@
         recoverMode = false,
         ultimulModel = "";
       const modeleExpandate = new Set();
+      let ctcExpandat = false;
       const nm = (id) => names[id] || "—",
         dt = (t) => (t ? new Date(t).toLocaleString("ro-RO") : "—");
       const modelKey = (m) => {
@@ -1063,6 +1091,10 @@
         togmodel: (d) => {
           if (modeleExpandate.has(d.key)) modeleExpandate.delete(d.key);
           else modeleExpandate.add(d.key);
+          go("checklist");
+        },
+        togctc: () => {
+          ctcExpandat = !ctcExpandat;
           go("checklist");
         },
         delsab: async (d) => {
@@ -1901,9 +1933,9 @@
         const row = (x, showModel) =>
           `<div class="crit-row"><input type="number" data-c="sab" data-f="ordine" data-id="${x.id}" value="${x.ordine}">${showModel ? `<input data-c="sab" data-f="model" data-id="${x.id}" value="${esc(x.model || "")}" placeholder="Model" list="dl-modele" autocomplete="off">` : ""}<input data-c="sab" data-f="text" data-id="${x.id}" value="${esc(x.text)}"><label><input type="checkbox" data-c="sab" data-f="activ" data-id="${x.id}" ${x.activ ? "checked" : ""}> activ</label><button class="btn gh sm" data-a="delsab" data-id="${x.id}" title="Șterge (istoricul rămâne)">✕</button></div>`;
         c.innerHTML = `<div class="card"><h3 style="margin-top:0">Criterii asamblare — pe model</h3>
- <div class="row" style="margin-bottom:10px;flex-wrap:wrap;gap:8px">
-   <input id="nm-asamblare" list="dl-modele" placeholder="Model..." style="max-width:220px" value="${esc(ultimulModel)}" autocomplete="off">
-   <input id="ns-asamblare" list="dl-crit-asamblare" placeholder="Criteriu nou..." style="flex:1;min-width:140px" autocomplete="off">
+ <div class="add-row">
+   <input id="nm-asamblare" list="dl-modele" placeholder="Model..." value="${esc(ultimulModel)}" autocomplete="off">
+   <input id="ns-asamblare" list="dl-crit-asamblare" placeholder="Criteriu nou..." autocomplete="off">
    <button class="btn" data-a="addsab" data-t="asamblare">Adaugă</button>
  </div>
  ${
@@ -1919,8 +1951,12 @@
  }
  </div>
  <div class="card"><h3 style="margin-top:0">Criterii CTC</h3>
- <div class="row" style="margin-bottom:8px;flex-wrap:nowrap"><input id="ns-ctc" list="dl-crit-ctc" placeholder="Criteriu nou..." autocomplete="off"><button class="btn" data-a="addsab" data-t="ctc">Adaugă</button></div>
- ${ctcR.map((x) => row(x, false)).join("") || '<div class="mut">Niciun criteriu.</div>'}
+ <div class="add-row">
+   <input id="ns-ctc" list="dl-crit-ctc" placeholder="Criteriu nou..." autocomplete="off">
+   <button class="btn" data-a="addsab" data-t="ctc">Adaugă</button>
+ </div>
+ <button class="model-toggle" data-a="togctc" style="display:block;margin:2px 0 8px" title="${ctcExpandat ? "Restrânge" : "Expandează"}">${ctcExpandat ? "− Criterii" : "+ Criterii"}</button>
+ ${ctcExpandat ? ctcR.map((x) => row(x, false)).join("") || '<div class="mut">Niciun criteriu.</div>' : ""}
  </div>
  <datalist id="dl-modele"></datalist>
  <datalist id="dl-crit-asamblare">${[
