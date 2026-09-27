@@ -16,6 +16,7 @@
     />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
     <style>
       /* Design tokens preluate din aplicația de distribuții */
       :root {
@@ -795,6 +796,7 @@
       const ADM = [
         ["stadii", "Stadii produse"],
         ["checklist", "Checklist"],
+        ["statistici", "Statistici"],
         ["setari", "Setări"],
       ];
       const TABS = {
@@ -1039,6 +1041,7 @@
         ctc: vCtc,
         stadii: vStadii,
         checklist: vCheck,
+        statistici: vStatistici,
         setari: vSet,
       };
       function fitListScroll() {
@@ -1582,6 +1585,24 @@
         stQ = "",
         stPage = 1;
       const PER_PAGE = 30;
+      const TIP_ACT = {
+        asamblare: "Asamblare",
+        remediere: "Remediere",
+        ctc: "CTC",
+      };
+      let staDe = "",
+        staPana = "",
+        staModel = "",
+        staCuloare = "",
+        staStadiu = "",
+        staOperator = "",
+        staTip = "",
+        staRezultat = "",
+        staVin = "",
+        staPage = 1,
+        staRows = [],
+        staOperatori = [],
+        staFiltered = [];
       async function vStadii(c) {
         const { data } = await sb
             .from("asm_produse")
@@ -1620,8 +1641,7 @@
        `<button class="kpi ${stF === k ? "on" : ""}" data-a="kpi" data-s="${k}"><span class="pill p-${k}">${ST[k]}</span><b>${all.filter((p) => p.stadiu === k).length}</b></button>`,
    )
    .join("")}</div>
- <div class="card"><input id="sq" placeholder="Caută VIN (parțial)..." value="${esc(stQ)}" style="max-width:300px;margin-bottom:8px"><div class="wrap"><div class="list-scroll"><table><thead><tr><th>Nr. crt.</th><th>VIN</th><th>Model</th><th>Culoare</th><th>Stadiu</th><th>De cât timp</th><th>Operator</th><th>Remedieri</th><th></th></tr></thead><tbody id="tb"></tbody></table></div></div><div class="pg-bar"><button class="btn gh sm" id="pgPrev">‹ Anterior</button><span class="mut" id="pgInfo"></span><button class="btn gh sm" id="pgNext">Următor ›</button></div></div>
- <div class="card"><h4 style="margin:0 0 8px">Indicatori (ultimele 30 zile)</h4><div id="indic" class="mut">Se calculează...</div></div>`;
+ <div class="card"><input id="sq" placeholder="Caută VIN (parțial)..." value="${esc(stQ)}" style="max-width:300px;margin-bottom:8px"><div class="wrap"><div class="list-scroll"><table><thead><tr><th>Nr. crt.</th><th>VIN</th><th>Model</th><th>Culoare</th><th>Stadiu</th><th>De cât timp</th><th>Operator</th><th>Remedieri</th><th></th></tr></thead><tbody id="tb"></tbody></table></div></div><div class="pg-bar"><button class="btn gh sm" id="pgPrev">‹ Anterior</button><span class="mut" id="pgInfo"></span><button class="btn gh sm" id="pgNext">Următor ›</button></div></div>`;
         const draw = () => {
           const q = stQ.toLowerCase();
           const filtered = all.filter(
@@ -1664,12 +1684,6 @@
           stPage = 1;
           draw();
         };
-        $("#indic").innerHTML = "Se calculează...";
-        computeIndicatori().then((x) => {
-          const el = $("#indic");
-          if (el) el.innerHTML = x;
-          fitListScroll();
-        });
       }
 
       async function computeIndicatori() {
@@ -1726,6 +1740,240 @@
         const card = (l, v) =>
           `<div><div class="mut">${l}</div><b style="font-size:20px">${v}</b></div>`;
         return `<div class="kpis" style="margin-top:0">${card("Timp mediu asamblare", asmOk.length ? dur(avg(asmOk) * 1e3) : "—")}${card("Aprobate din prima la CTC", pctPrima)}${card("Timp mediu remediere", remOk.length ? dur(avg(remOk) * 1e3) : "—")}${card("Criteriu cu cele mai multe NOK", esc(topCrit))}</div>`;
+      }
+
+      function isoZi(d) {
+        return d.toISOString().slice(0, 10);
+      }
+
+      async function fetchStatistici() {
+        const { data: et } = await sb
+          .from("asm_etape")
+          .select(
+            "id,asm_produs_id,tip,user_id,rezultat,durata_sec,started_at,ended_at",
+          )
+          .not("ended_at", "is", null)
+          .gte("ended_at", staDe + "T00:00:00")
+          .lte("ended_at", staPana + "T23:59:59")
+          .order("ended_at", { ascending: false })
+          .limit(5000);
+        const rows = et || [];
+        const ids = [...new Set(rows.map((r) => r.asm_produs_id))];
+        let prodMap = {};
+        if (ids.length) {
+          const { data: pr } = await sb
+            .from("asm_produse")
+            .select("id,vin,model,culoare,stadiu")
+            .in("id", ids);
+          (pr || []).forEach((p) => (prodMap[p.id] = p));
+        }
+        staRows = rows.map((r) => ({
+          ...r,
+          produs: prodMap[r.asm_produs_id] || {},
+        }));
+      }
+
+      async function vStatistici(c) {
+        if (!staDe || !staPana) {
+          staPana = isoZi(new Date());
+          staDe = isoZi(new Date(Date.now() - 30 * 864e5));
+        }
+        if (!staOperatori.length) {
+          const { data: op } = await sb
+            .from("profiles")
+            .select("id,nume,email,role")
+            .in("role", ["asm_operator", "asm_remediere", "asm_ctc"]);
+          staOperatori = op || [];
+        }
+        c.innerHTML = `<div class="card"><h4 style="margin:0 0 8px">Indicatori (ultimele 30 zile)</h4><div id="indic" class="mut">Se calculează...</div></div>
+ <div class="card">
+   <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:4px">
+     <div style="max-width:150px;flex:1 1 140px"><div class="mut">Din data</div><input type="date" id="staDe" value="${staDe}"></div>
+     <div style="max-width:150px;flex:1 1 140px"><div class="mut">Până în data</div><input type="date" id="staPana" value="${staPana}"></div>
+     <div style="max-width:170px;flex:1 1 150px"><div class="mut">Model</div><select id="staModel"><option value="">Toate</option>${[
+       ...new Set(staRows.map((r) => r.produs.model).filter(Boolean)),
+     ]
+       .sort()
+       .map(
+         (m) =>
+           `<option value="${esc(m)}" ${staModel === m ? "selected" : ""}>${esc(m)}</option>`,
+       )
+       .join("")}</select></div>
+     <div style="max-width:150px;flex:1 1 140px"><div class="mut">Culoare</div><select id="staCuloare"><option value="">Toate</option>${[
+       ...new Set(staRows.map((r) => r.produs.culoare).filter(Boolean)),
+     ]
+       .sort()
+       .map(
+         (cu) =>
+           `<option value="${esc(cu)}" ${staCuloare === cu ? "selected" : ""}>${esc(cu)}</option>`,
+       )
+       .join("")}</select></div>
+     <div style="max-width:170px;flex:1 1 150px"><div class="mut">Stadiu</div><select id="staStadiu"><option value="">Toate</option>${Object.keys(
+       ST,
+     )
+       .map(
+         (k) =>
+           `<option value="${k}" ${staStadiu === k ? "selected" : ""}>${ST[k]}</option>`,
+       )
+       .join("")}</select></div>
+     <div style="max-width:190px;flex:1 1 160px"><div class="mut">Operator</div><select id="staOperator"><option value="">Toți</option>${staOperatori.map((o) => `<option value="${o.id}" ${staOperator === o.id ? "selected" : ""}>${esc(o.nume || o.email)}</option>`).join("")}</select></div>
+     <div style="max-width:160px;flex:1 1 140px"><div class="mut">Tip activitate</div><select id="staTip"><option value="">Toate</option>${Object.keys(
+       TIP_ACT,
+     )
+       .map(
+         (k) =>
+           `<option value="${k}" ${staTip === k ? "selected" : ""}>${TIP_ACT[k]}</option>`,
+       )
+       .join("")}</select></div>
+     <div style="max-width:130px;flex:1 1 120px"><div class="mut">Rezultat</div><select id="staRezultat"><option value="">Toate</option><option value="ok" ${staRezultat === "ok" ? "selected" : ""}>OK</option><option value="nok" ${staRezultat === "nok" ? "selected" : ""}>NOK</option></select></div>
+     <div style="max-width:200px;flex:1 1 160px"><div class="mut">VIN (parțial)</div><input id="staVin" placeholder="Caută VIN..." value="${esc(staVin)}"></div>
+   </div>
+   <div style="margin:6px 0 10px"><button class="btn gh sm" id="staExport">⬇ Exportă Excel</button></div>
+   <div class="wrap"><div class="list-scroll"><table><thead><tr><th>Nr. crt.</th><th>Data</th><th>Tip activitate</th><th>Operator</th><th>VIN</th><th>Model</th><th>Culoare</th><th>Stadiu curent</th><th>Rezultat</th><th>Durată</th></tr></thead><tbody id="tbSta"></tbody></table></div></div>
+   <div class="pg-bar"><button class="btn gh sm" id="staPrev">‹ Anterior</button><span class="mut" id="staInfo"></span><button class="btn gh sm" id="staNext">Următor ›</button></div>
+ </div>`;
+        const draw = () => {
+          const q = staVin.toLowerCase();
+          staFiltered = staRows.filter(
+            (r) =>
+              (!staModel || r.produs.model === staModel) &&
+              (!staCuloare || r.produs.culoare === staCuloare) &&
+              (!staStadiu || r.produs.stadiu === staStadiu) &&
+              (!staOperator || r.user_id === staOperator) &&
+              (!staTip || r.tip === staTip) &&
+              (!staRezultat || r.rezultat === staRezultat) &&
+              (r.produs.vin || "").toLowerCase().includes(q),
+          );
+          const total = staFiltered.length,
+            pages = Math.max(1, Math.ceil(total / PER_PAGE));
+          if (staPage > pages) staPage = pages;
+          if (staPage < 1) staPage = 1;
+          const start = (staPage - 1) * PER_PAGE,
+            pageItems = staFiltered.slice(start, start + PER_PAGE);
+          $("#tbSta").innerHTML =
+            pageItems
+              .map(
+                (r, i) =>
+                  `<tr><td>${start + i + 1}</td><td>${dt(r.ended_at)}</td><td>${TIP_ACT[r.tip] || esc(r.tip)}</td><td>${esc(nm(r.user_id))}</td><td class="mono">${esc(r.produs.vin || "—")}</td><td>${esc(r.produs.model || "—")}</td><td>${esc(r.produs.culoare || "—")}</td><td>${r.produs.stadiu ? `<span class="pill p-${r.produs.stadiu}">${ST[r.produs.stadiu]}</span>` : "—"}</td><td>${(r.rezultat || "—").toUpperCase()}</td><td>${r.durata_sec ? dur(r.durata_sec * 1e3) : "—"}</td></tr>`,
+              )
+              .join("") ||
+            '<tr><td colspan="10" class="mut">Nicio înregistrare.</td></tr>';
+          $("#staInfo").textContent = total
+            ? `Pagina ${staPage} din ${pages} (${total} înregistrări)`
+            : "Nicio înregistrare";
+          $("#staPrev").disabled = staPage <= 1;
+          $("#staNext").disabled = staPage >= pages;
+          fitListScroll();
+        };
+        const reload = async () => {
+          $("#tbSta").innerHTML =
+            '<tr><td colspan="10" class="mut">Se încarcă...</td></tr>';
+          await fetchStatistici();
+          draw();
+        };
+        $("#staDe").onchange = (e) => {
+          staDe = e.target.value;
+          staPage = 1;
+          reload();
+        };
+        $("#staPana").onchange = (e) => {
+          staPana = e.target.value;
+          staPage = 1;
+          reload();
+        };
+        $("#staModel").onchange = (e) => {
+          staModel = e.target.value;
+          staPage = 1;
+          draw();
+        };
+        $("#staCuloare").onchange = (e) => {
+          staCuloare = e.target.value;
+          staPage = 1;
+          draw();
+        };
+        $("#staStadiu").onchange = (e) => {
+          staStadiu = e.target.value;
+          staPage = 1;
+          draw();
+        };
+        $("#staOperator").onchange = (e) => {
+          staOperator = e.target.value;
+          staPage = 1;
+          draw();
+        };
+        $("#staTip").onchange = (e) => {
+          staTip = e.target.value;
+          staPage = 1;
+          draw();
+        };
+        $("#staRezultat").onchange = (e) => {
+          staRezultat = e.target.value;
+          staPage = 1;
+          draw();
+        };
+        $("#staVin").oninput = (e) => {
+          staVin = e.target.value;
+          staPage = 1;
+          draw();
+        };
+        $("#staPrev").onclick = () => {
+          staPage--;
+          draw();
+        };
+        $("#staNext").onclick = () => {
+          staPage++;
+          draw();
+        };
+        $("#staExport").onclick = () => exportStatisticiExcel();
+        await reload();
+        computeIndicatori().then((x) => {
+          const el = $("#indic");
+          if (el) el.innerHTML = x;
+          fitListScroll();
+        });
+      }
+
+      async function exportStatisticiExcel() {
+        if (!staFiltered.length) return toast("Nu există date de exportat.", 1);
+        const wb = new ExcelJS.Workbook();
+        const ws = wb.addWorksheet("Statistici");
+        ws.columns = [
+          { header: "Data", key: "data", width: 18 },
+          { header: "Tip activitate", key: "tip", width: 16 },
+          { header: "Operator", key: "operator", width: 22 },
+          { header: "VIN", key: "vin", width: 20 },
+          { header: "Model", key: "model", width: 16 },
+          { header: "Culoare", key: "culoare", width: 14 },
+          { header: "Stadiu curent", key: "stadiu", width: 16 },
+          { header: "Rezultat", key: "rezultat", width: 12 },
+          { header: "Durată", key: "durata", width: 12 },
+        ];
+        ws.getRow(1).font = { bold: true };
+        staFiltered.forEach((r) =>
+          ws.addRow({
+            data: dt(r.ended_at),
+            tip: TIP_ACT[r.tip] || r.tip,
+            operator: nm(r.user_id),
+            vin: r.produs.vin || "—",
+            model: r.produs.model || "—",
+            culoare: r.produs.culoare || "—",
+            stadiu: r.produs.stadiu ? ST[r.produs.stadiu] : "—",
+            rezultat: (r.rezultat || "—").toUpperCase(),
+            durata: r.durata_sec ? dur(r.durata_sec * 1e3) : "—",
+          }),
+        );
+        const buf = await wb.xlsx.writeBuffer();
+        const blob = new Blob([buf], {
+          type: "application/octet-stream",
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `statistici-asamblare_${staDe}_${staPana}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
       }
 
       async function ist(id) {
