@@ -1500,6 +1500,23 @@
           all = data || [],
           h = 3600e3,
           now = Date.now();
+        const idsAvizate = all
+          .filter((p) => p.stadiu === "ctc_avizat")
+          .map((p) => p.id);
+        const avizatDe = {};
+        if (idsAvizate.length) {
+          const { data: ctcEt } = await sb
+            .from("asm_etape")
+            .select("asm_produs_id,user_id,ended_at")
+            .eq("tip", "ctc")
+            .not("ended_at", "is", null)
+            .in("asm_produs_id", idsAvizate)
+            .order("ended_at", { ascending: false });
+          (ctcEt || []).forEach((e) => {
+            if (!(e.asm_produs_id in avizatDe))
+              avizatDe[e.asm_produs_id] = e.user_id;
+          });
+        }
         const late = all.filter(
           (p) =>
             p.stadiu === "in_asamblare" &&
@@ -1525,7 +1542,7 @@
               )
               .map(
                 (p) =>
-                  `<tr><td class="mono">${esc(p.vin || "—")}</td><td>${esc(p.model || "—")}</td><td>${esc(p.culoare || "—")}</td><td><span class="pill p-${p.stadiu}">${ST[p.stadiu]}</span></td><td>${dur(now - new Date(p.updated_at))}</td><td>${p.operator_curent ? esc(nm(p.operator_curent)) : "—"}</td><td>${p.nr_remedieri}</td><td><button class="btn gh sm" data-a="hist" data-id="${p.id}">Istoric</button> ${p.operator_curent ? `<button class="btn gh sm" data-a="elib" data-id="${p.id}">Eliberează</button>` : ""}${p.stadiu === "ctc_avizat" ? `<button class="btn gh sm" data-a="revoc" data-id="${p.id}">Revocă aviz</button>` : ""}</td></tr>`,
+                  `<tr><td class="mono">${esc(p.vin || "—")}</td><td>${esc(p.model || "—")}</td><td>${esc(p.culoare || "—")}</td><td><span class="pill p-${p.stadiu}">${ST[p.stadiu]}</span></td><td>${dur(now - new Date(p.updated_at))}</td><td>${p.operator_curent ? esc(nm(p.operator_curent)) : p.stadiu === "ctc_avizat" && avizatDe[p.id] ? esc(nm(avizatDe[p.id])) : "—"}</td><td>${p.nr_remedieri}</td><td><button class="btn gh sm" data-a="hist" data-id="${p.id}">Istoric</button> ${p.operator_curent ? `<button class="btn gh sm" data-a="elib" data-id="${p.id}">Eliberează</button>` : ""}${p.stadiu === "ctc_avizat" ? `<button class="btn gh sm" data-a="revoc" data-id="${p.id}">Revocă aviz</button>` : ""}</td></tr>`,
               )
               .join("") ||
             '<tr><td colspan="8" class="mut">Niciun produs.</td></tr>';
