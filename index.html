@@ -513,6 +513,14 @@
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
       }
+      .list-scroll {
+        max-height: 55vh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .list-scroll .card:last-child {
+        margin-bottom: 0;
+      }
       table {
         border-collapse: separate;
         border-spacing: 0;
@@ -522,10 +530,24 @@
       th,
       td {
         text-align: left;
-        padding: 8px 10px;
+        padding: 5px 10px;
         border-bottom: 1px solid #eef1f3;
         font-size: 13px;
         white-space: nowrap;
+      }
+      .list-scroll thead th {
+        position: sticky;
+        top: 0;
+        background: #fff;
+        z-index: 2;
+      }
+      .pg-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-top: 8px;
+        flex-wrap: wrap;
       }
       th {
         color: var(--mut);
@@ -1047,6 +1069,7 @@
         },
         kpi: (d) => {
           stF = stF === d.s ? "" : d.s;
+          stPage = 1;
           go("stadii");
         },
         rez: (d) => setRez(+d.i, d.v),
@@ -1264,6 +1287,7 @@
             )
             .join("") || '<div class="mut">Nimic în lucru.</div>');
       }
+      const listQ = {};
       async function listaStadiu(c, st, btn, lbl, extra) {
         const { data } = await sb
           .from("asm_produse")
@@ -1271,14 +1295,28 @@
           .eq("stadiu", st)
           .is("operator_curent", null)
           .order("updated_at");
-        c.innerHTML =
-          (data || [])
-            .map(
-              (p) =>
-                `<div class="card row"><div>${prodTxt(p)}<div class="mut">de ${dur(Date.now() - new Date(p.updated_at))}${p.nr_remedieri ? ` · reverificare (remediat de ${p.nr_remedieri}×)` : ""}${extra && p.sursa_remediere ? ` · sursa: ${p.sursa_remediere}` : ""}</div></div><button class="btn" data-a="${btn}" data-id="${p.id}">${lbl}</button></div>`,
-            )
-            .join("") ||
-          '<div class="mut">Niciun produs în această listă.</div>';
+        const all = data || [];
+        c.innerHTML = `<div class="card"><input id="lq" placeholder="Caută VIN (parțial, minim 3 caractere)..." value="${esc(listQ[st] || "")}" style="max-width:300px;margin-bottom:8px" autocomplete="off"><div id="lst" class="list-scroll"></div></div>`;
+        const draw = () => {
+          const q = (listQ[st] || "").trim().toLowerCase();
+          const filtered =
+            q.length >= 3
+              ? all.filter((p) => (p.vin || "").toLowerCase().includes(q))
+              : all;
+          $("#lst").innerHTML =
+            filtered
+              .map(
+                (p) =>
+                  `<div class="card row"><div>${prodTxt(p)}<div class="mut">de ${dur(Date.now() - new Date(p.updated_at))}${p.nr_remedieri ? ` · reverificare (remediat de ${p.nr_remedieri}×)` : ""}${extra && p.sursa_remediere ? ` · sursa: ${p.sursa_remediere}` : ""}</div></div><button class="btn" data-a="${btn}" data-id="${p.id}">${lbl}</button></div>`,
+              )
+              .join("") ||
+            '<div class="mut">Niciun produs în această listă.</div>';
+        };
+        draw();
+        $("#lq").oninput = (e) => {
+          listQ[st] = e.target.value;
+          draw();
+        };
       }
       function vRem(c) {
         return listaStadiu(
@@ -1522,7 +1560,9 @@
 
       /* ---------- ADMIN ---------- */
       let stF = "",
-        stQ = "";
+        stQ = "",
+        stPage = 1;
+      const PER_PAGE = 30;
       async function vStadii(c) {
         const { data } = await sb
             .from("asm_produse")
@@ -1561,27 +1601,47 @@
        `<button class="kpi ${stF === k ? "on" : ""}" data-a="kpi" data-s="${k}"><span class="pill p-${k}">${ST[k]}</span><b>${all.filter((p) => p.stadiu === k).length}</b></button>`,
    )
    .join("")}</div>
- <div class="card"><input id="sq" placeholder="Caută VIN (parțial)..." value="${esc(stQ)}" style="max-width:300px;margin-bottom:8px"><div class="wrap"><table><thead><tr><th>VIN</th><th>Model</th><th>Culoare</th><th>Stadiu</th><th>De cât timp</th><th>Operator</th><th>Remedieri</th><th></th></tr></thead><tbody id="tb"></tbody></table></div></div>
+ <div class="card"><input id="sq" placeholder="Caută VIN (parțial)..." value="${esc(stQ)}" style="max-width:300px;margin-bottom:8px"><div class="wrap"><div class="list-scroll"><table><thead><tr><th>Nr. crt.</th><th>VIN</th><th>Model</th><th>Culoare</th><th>Stadiu</th><th>De cât timp</th><th>Operator</th><th>Remedieri</th><th></th></tr></thead><tbody id="tb"></tbody></table></div></div><div class="pg-bar"><button class="btn gh sm" id="pgPrev">‹ Anterior</button><span class="mut" id="pgInfo"></span><button class="btn gh sm" id="pgNext">Următor ›</button></div></div>
  <div class="card"><h4 style="margin:0 0 8px">Indicatori (ultimele 30 zile)</h4><div id="indic" class="mut">Se calculează...</div></div>`;
         const draw = () => {
           const q = stQ.toLowerCase();
+          const filtered = all.filter(
+            (p) =>
+              (!stF || p.stadiu === stF) &&
+              (p.vin || "").toLowerCase().includes(q),
+          );
+          const total = filtered.length,
+            pages = Math.max(1, Math.ceil(total / PER_PAGE));
+          if (stPage > pages) stPage = pages;
+          if (stPage < 1) stPage = 1;
+          const start = (stPage - 1) * PER_PAGE,
+            pageItems = filtered.slice(start, start + PER_PAGE);
           $("#tb").innerHTML =
-            all
-              .filter(
-                (p) =>
-                  (!stF || p.stadiu === stF) &&
-                  (p.vin || "").toLowerCase().includes(q),
-              )
+            pageItems
               .map(
-                (p) =>
-                  `<tr><td class="mono">${esc(p.vin || "—")}</td><td>${esc(p.model || "—")}</td><td>${esc(p.culoare || "—")}</td><td><span class="pill p-${p.stadiu}">${ST[p.stadiu]}</span></td><td>${dur(now - new Date(p.updated_at))}</td><td>${p.operator_curent ? esc(nm(p.operator_curent)) : p.stadiu === "ctc_avizat" && avizatDe[p.id] ? esc(nm(avizatDe[p.id])) : "—"}</td><td>${p.nr_remedieri}</td><td><button class="btn gh sm" data-a="hist" data-id="${p.id}">Istoric</button> ${p.operator_curent ? `<button class="btn gh sm" data-a="elib" data-id="${p.id}">Eliberează</button>` : ""}${p.stadiu === "ctc_avizat" ? `<button class="btn gh sm" data-a="revoc" data-id="${p.id}">Revocă aviz</button>` : ""}</td></tr>`,
+                (p, i) =>
+                  `<tr><td>${start + i + 1}</td><td class="mono">${esc(p.vin || "—")}</td><td>${esc(p.model || "—")}</td><td>${esc(p.culoare || "—")}</td><td><span class="pill p-${p.stadiu}">${ST[p.stadiu]}</span></td><td>${dur(now - new Date(p.updated_at))}</td><td>${p.operator_curent ? esc(nm(p.operator_curent)) : p.stadiu === "ctc_avizat" && avizatDe[p.id] ? esc(nm(avizatDe[p.id])) : "—"}</td><td>${p.nr_remedieri}</td><td><button class="btn gh sm" data-a="hist" data-id="${p.id}">Istoric</button> ${p.operator_curent ? `<button class="btn gh sm" data-a="elib" data-id="${p.id}">Eliberează</button>` : ""}${p.stadiu === "ctc_avizat" ? `<button class="btn gh sm" data-a="revoc" data-id="${p.id}">Revocă aviz</button>` : ""}</td></tr>`,
               )
               .join("") ||
-            '<tr><td colspan="8" class="mut">Niciun produs.</td></tr>';
+            '<tr><td colspan="9" class="mut">Niciun produs.</td></tr>';
+          $("#pgInfo").textContent = total
+            ? `Pagina ${stPage} din ${pages} (${total} produse)`
+            : "Niciun produs";
+          $("#pgPrev").disabled = stPage <= 1;
+          $("#pgNext").disabled = stPage >= pages;
         };
         draw();
+        $("#pgPrev").onclick = () => {
+          stPage--;
+          draw();
+        };
+        $("#pgNext").onclick = () => {
+          stPage++;
+          draw();
+        };
         $("#sq").oninput = (e) => {
           stQ = e.target.value;
+          stPage = 1;
           draw();
         };
         $("#indic").innerHTML = "Se calculează...";
