@@ -924,7 +924,6 @@
         S = s || {
           max_in_lucru: 3,
           prag_alerta_ore: 8,
-          ctc_alerta_zile: 365,
           poze_obligatorii: true,
         };
         const { data: pr } = await sb.from("profiles").select("id,nume,email");
@@ -1503,12 +1502,10 @@
           now = Date.now();
         const late = all.filter(
           (p) =>
-            (["in_asamblare", "in_remediere"].includes(p.stadiu) &&
-              now - new Date(p.updated_at) > S.prag_alerta_ore * h) ||
-            (p.stadiu === "asteapta_ctc" &&
-              now - new Date(p.updated_at) > S.ctc_alerta_zile * 24 * h),
+            p.stadiu === "in_asamblare" &&
+            now - new Date(p.updated_at) > S.prag_alerta_ore * h,
         ).length;
-        c.innerHTML = `${late ? `<div class="al">⚠️ ${late} produse depășesc pragul de timp (în lucru > ${S.prag_alerta_ore} h sau CTC > ${S.ctc_alerta_zile} zile).</div>` : ""}
+        c.innerHTML = `${late ? `<div class="al">⚠️ ${late} produse depășesc pragul de timp în asamblare (> ${S.prag_alerta_ore} h).</div>` : ""}
  <div class="kpis">${Object.keys(ST)
    .map(
      (k) =>
@@ -1953,7 +1950,7 @@
       function vSet(c) {
         const f = (k, l, ty = "number") =>
           `<div style="margin-bottom:10px"><div class="mut">${l}</div>${ty === "checkbox" ? `<input type="checkbox" style="width:auto" data-c="set" data-f="${k}" ${S[k] ? "checked" : ""}>` : `<input type="number" min="1" data-c="set" data-f="${k}" value="${S[k]}">`}</div>`;
-        c.innerHTML = `<div class="card" style="max-width:420px">${f("max_in_lucru", "Produse simultane per utilizator")}${f("prag_alerta_ore", "Alertă produs în lucru (ore)")}${f("ctc_alerta_zile", "Alertă produs care așteaptă CTC (zile)")}${f("poze_obligatorii", "Poză obligatorie la fiecare neregulă", "checkbox")}</div>`;
+        c.innerHTML = `<div class="card" style="max-width:420px">${f("max_in_lucru", "Produse simultane per utilizator")}${f("prag_alerta_ore", "Alertă produs în lucru (ore)")}${f("poze_obligatorii", "Poză obligatorie la fiecare neregulă", "checkbox")}</div>`;
       }
       boot0();
     </script>
