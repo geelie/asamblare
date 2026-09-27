@@ -108,6 +108,11 @@
       header small {
         color: #94a3b8;
       }
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+      }
       nav {
         display: flex;
         gap: 2px;
@@ -117,9 +122,6 @@
         background: #fff;
         border-bottom: 1px solid var(--line);
         padding: 0 max(16px, calc((100% - 980px) / 2 + 16px));
-        position: sticky;
-        top: 0;
-        z-index: 10;
       }
       nav::-webkit-scrollbar {
         display: none;
@@ -168,6 +170,69 @@
         gap: 10px;
         align-items: center;
         justify-content: space-between;
+      }
+      .crit-row {
+        display: flex;
+        flex-wrap: nowrap;
+        align-items: center;
+        gap: 5px;
+        margin-bottom: 3px;
+      }
+      .crit-row input[type="number"] {
+        width: 38px;
+        flex: 0 0 auto;
+        padding: 3px 5px;
+        min-height: 28px;
+        font-size: 12.5px;
+        text-align: center;
+      }
+      .crit-row input[data-f="model"] {
+        width: 78px;
+        flex: 0 0 auto;
+        padding: 3px 6px;
+        min-height: 28px;
+        font-size: 12.5px;
+      }
+      .crit-row input[data-f="text"] {
+        flex: 1 1 auto;
+        min-width: 50px;
+        padding: 3px 8px;
+        min-height: 28px;
+        font-size: 12.5px;
+      }
+      .crit-row label {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        white-space: nowrap;
+        font-size: 11.5px;
+        color: var(--mut);
+        flex: 0 0 auto;
+      }
+      .crit-row label input[type="checkbox"] {
+        width: 15px !important;
+        height: 15px;
+      }
+      .crit-row button.btn {
+        padding: 3px 7px;
+        min-height: 28px;
+        font-size: 12px;
+        flex: 0 0 auto;
+      }
+      .model-toggle {
+        border: 0;
+        background: transparent;
+        color: var(--mut);
+        cursor: pointer;
+        font:
+          800 15px Manrope,
+          system-ui,
+          sans-serif;
+        padding: 0 6px 0 0;
+        line-height: 1;
+      }
+      .model-toggle:hover {
+        color: var(--ink);
       }
       .mono {
         font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -722,6 +787,7 @@
         rt = null,
         recoverMode = false,
         ultimulModel = "";
+      const modeleExpandate = new Set();
       const nm = (id) => names[id] || "—",
         dt = (t) => (t ? new Date(t).toLocaleString("ro-RO") : "—");
       const modelKey = (m) => {
@@ -858,14 +924,14 @@
         S = s || {
           max_in_lucru: 3,
           prag_alerta_ore: 8,
-          ctc_alerta_zile: 3,
+          ctc_alerta_zile: 365,
           poze_obligatorii: true,
         };
         const { data: pr } = await sb.from("profiles").select("id,nume,email");
         (pr || []).forEach((x) => (names[x.id] = x.nume || x.email));
         names[me.id] = me.nume || me.email;
         $("#app").innerHTML =
-          `<header><div><b>⚙️ Asamblare</b> <small>· ${ROL[p.role]} · ${esc(names[me.id])}</small></div><button class="btn gh sm" style="color:#fff;border-color:#475569" id="lo">Deconectare</button></header><nav>${TABS[p.role].map((t) => `<button data-a="tab" data-t="${t[0]}">${t[1]}</button>`).join("")}</nav><main id="c"></main>`;
+          `<div class="topbar"><header><div><b>⚙️ Asamblare</b> <small>· ${ROL[p.role]} · ${esc(names[me.id])}</small></div><button class="btn gh sm" style="color:#fff;border-color:#475569" id="lo">Deconectare</button></header><nav>${TABS[p.role].map((t) => `<button data-a="tab" data-t="${t[0]}">${t[1]}</button>`).join("")}</nav></div><main id="c"></main>`;
         $("#lo").onclick = () => sb.auth.signOut();
         if (rt) sb.removeChannel(rt);
         rt = sb
@@ -994,6 +1060,11 @@
           });
           toast("Remediere finalizată. Produsul așteaptă CTC.");
           go(tab);
+        },
+        togmodel: (d) => {
+          if (modeleExpandate.has(d.key)) modeleExpandate.delete(d.key);
+          else modeleExpandate.add(d.key);
+          go("checklist");
         },
         delsab: async (d) => {
           await sb.from("asm_checklist_sabloane").delete().eq("id", d.id);
@@ -1326,14 +1397,12 @@
           ft.innerHTML = `<button class="btn" data-a="fin" ${all ? "" : "disabled"}>${F.e.tip === "ctc" ? "Acordă aviz CTC" : "Trimite în Depozit central"}</button>`;
       }
       async function addNer(txt) {
-        const r = await sb
-          .from("asm_nereguli")
-          .insert({
-            etapa_id: F.e.id,
-            asm_produs_id: F.e.asm_produs_id,
-            criteriu_text: txt,
-            descriere: "",
-          });
+        const r = await sb.from("asm_nereguli").insert({
+          etapa_id: F.e.id,
+          asm_produs_id: F.e.asm_produs_id,
+          criteriu_text: txt,
+          descriere: "",
+        });
         if (r.error) return toast(r.error.message, 1);
         fisa(F.e.id);
       }
@@ -1353,18 +1422,16 @@
             .eq("etapa_id", F.e.id)
             .eq("criteriu_text", s.text);
         }
-        const r = await sb
-          .from("asm_checklist_rezultate")
-          .upsert(
-            {
-              etapa_id: F.e.id,
-              sablon_id: s.id,
-              text_criteriu: s.text,
-              ordine: i + 1,
-              rezultat: v,
-            },
-            { onConflict: "etapa_id,ordine" },
-          );
+        const r = await sb.from("asm_checklist_rezultate").upsert(
+          {
+            etapa_id: F.e.id,
+            sablon_id: s.id,
+            text_criteriu: s.text,
+            ordine: i + 1,
+            rezultat: v,
+          },
+          { onConflict: "etapa_id,ordine" },
+        );
         if (r.error) return toast(r.error.message, 1);
         if (v === "nok" && !has.length) {
           await addNer(s.text);
@@ -1391,13 +1458,11 @@
           .from(B)
           .upload(path, bl, { contentType: "image/jpeg" });
         if (u.error) return toast(u.error.message, 1);
-        const r = await sb
-          .from("asm_poze")
-          .insert({
-            neregula_id: inp.dataset.id,
-            tip: inp.dataset.tip,
-            storage_path: path,
-          });
+        const r = await sb.from("asm_poze").insert({
+          neregula_id: inp.dataset.id,
+          tip: inp.dataset.tip,
+          storage_path: path,
+        });
         if (r.error) return toast(r.error.message, 1);
         F.e.tip === "remediere" ? rem(F.e.id) : fisa(F.e.id);
       }
@@ -1820,29 +1885,29 @@
             });
         });
         const row = (x, showModel) =>
-          `<div class="row" style="margin-bottom:6px;flex-wrap:wrap;gap:6px"><input type="number" style="width:56px" data-c="sab" data-f="ordine" data-id="${x.id}" value="${x.ordine}">${showModel ? `<input data-c="sab" data-f="model" data-id="${x.id}" value="${esc(x.model || "")}" placeholder="Model" list="dl-modele" style="max-width:150px" autocomplete="off">` : ""}<input data-c="sab" data-f="text" data-id="${x.id}" value="${esc(x.text)}" style="flex:1;min-width:140px"><label style="white-space:nowrap"><input type="checkbox" style="width:auto" data-c="sab" data-f="activ" data-id="${x.id}" ${x.activ ? "checked" : ""}> activ</label><button class="btn gh sm" data-a="delsab" data-id="${x.id}" title="Șterge (istoricul rămâne)">✕</button></div>`;
+          `<div class="crit-row"><input type="number" data-c="sab" data-f="ordine" data-id="${x.id}" value="${x.ordine}">${showModel ? `<input data-c="sab" data-f="model" data-id="${x.id}" value="${esc(x.model || "")}" placeholder="Model" list="dl-modele" autocomplete="off">` : ""}<input data-c="sab" data-f="text" data-id="${x.id}" value="${esc(x.text)}"><label><input type="checkbox" data-c="sab" data-f="activ" data-id="${x.id}" ${x.activ ? "checked" : ""}> activ</label><button class="btn gh sm" data-a="delsab" data-id="${x.id}" title="Șterge (istoricul rămâne)">✕</button></div>`;
         c.innerHTML = `<div class="card"><h3 style="margin-top:0">Criterii asamblare — pe model</h3>
- <div class="mut" style="margin-bottom:10px">Fiecare model are propria listă. La preluarea din Antedepozit, operatorul primește doar criteriile modelului produsului; dacă modelul nu are nicio listă activă, preluarea este blocată.</div>
- ${
-   groups
-     .map(
-       (
-         g,
-       ) => `<div style="border-top:1px solid var(--line);padding-top:10px;margin-top:10px">
-   <div class="row" style="margin-bottom:6px"><h4 style="margin:0">${g.key ? esc(g.model) : '<span class="mut">Fără model — completează câmpul „Model" pe fiecare rând ca să se aplice</span>'}</h4>${g.key ? `<button class="btn gh sm" data-a="dupmodel" data-key="${esc(g.key)}">Copiază la alt model</button>` : ""}</div>
-   ${g.rows.map((x) => row(x, true)).join("")}
- </div>`,
-     )
-     .join("") || '<div class="mut">Niciun criteriu de asamblare încă.</div>'
- }
- <div class="row" style="margin-top:14px;flex-wrap:wrap;gap:8px">
-   <input id="nm-asamblare" list="dl-modele" placeholder="Model (ex: RUZGAR)..." style="max-width:220px" value="${esc(ultimulModel)}" autocomplete="off">
+ <div class="row" style="margin-bottom:10px;flex-wrap:wrap;gap:8px">
+   <input id="nm-asamblare" list="dl-modele" placeholder="Model..." style="max-width:220px" value="${esc(ultimulModel)}" autocomplete="off">
    <input id="ns-asamblare" list="dl-crit-asamblare" placeholder="Criteriu nou..." style="flex:1;min-width:140px" autocomplete="off">
    <button class="btn" data-a="addsab" data-t="asamblare">Adaugă</button>
- </div></div>
+ </div>
+ ${
+   groups
+     .map((g) => {
+       const open = modeleExpandate.has(g.key);
+       return `<div style="border-top:1px solid var(--line);padding-top:6px;margin-top:6px">
+   <div class="row" style="margin-bottom:4px"><h4 style="margin:0"><button class="model-toggle" data-a="togmodel" data-key="${esc(g.key)}" title="${open ? "Restrânge" : "Expandează"}">${open ? "−" : "+"}</button>${g.key ? esc(g.model) : '<span class="mut">Fără model — completează câmpul „Model" pe fiecare rând ca să se aplice</span>'}</h4>${g.key ? `<button class="btn gh sm" data-a="dupmodel" data-key="${esc(g.key)}">Copiază la alt model</button>` : ""}</div>
+   ${open ? g.rows.map((x) => row(x, true)).join("") : ""}
+ </div>`;
+     })
+     .join("") || '<div class="mut">Niciun criteriu de asamblare încă.</div>'
+ }
+ </div>
  <div class="card"><h3 style="margin-top:0">Criterii CTC</h3>
+ <div class="row" style="margin-bottom:8px;flex-wrap:nowrap"><input id="ns-ctc" list="dl-crit-ctc" placeholder="Criteriu nou..." autocomplete="off"><button class="btn" data-a="addsab" data-t="ctc">Adaugă</button></div>
  ${ctcR.map((x) => row(x, false)).join("") || '<div class="mut">Niciun criteriu.</div>'}
- <div class="row" style="margin-top:8px;flex-wrap:nowrap"><input id="ns-ctc" list="dl-crit-ctc" placeholder="Criteriu nou..." autocomplete="off"><button class="btn" data-a="addsab" data-t="ctc">Adaugă</button></div></div>
+ </div>
  <datalist id="dl-modele"></datalist>
  <datalist id="dl-crit-asamblare">${[
    ...new Set(asmR.map((x) => x.text.trim()).filter(Boolean)),
