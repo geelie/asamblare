@@ -555,6 +555,49 @@
         margin-top: 8px;
         flex-wrap: wrap;
       }
+      /* datepicker ZZ.LL.AAAA + calendar */
+      .dp {
+        position: relative;
+        display: flex;
+        gap: 6px;
+      }
+      .dp .dp-txt {
+        cursor: pointer;
+        background: #fff;
+      }
+      .dp .dp-cal {
+        flex: 0 0 auto;
+        min-height: 42px;
+        padding: 0 12px;
+        border: 1px solid #d5dbe0;
+        border-radius: 10px;
+        background: #fff;
+        cursor: pointer;
+        font-size: 15px;
+      }
+      .dp .dp-native {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+        pointer-events: none;
+      }
+      /* tabel Statistici: fără scroll orizontal, coloane compacte */
+      .tbl-sta th,
+      .tbl-sta td {
+        white-space: normal;
+        word-break: break-word;
+        padding: 3px 6px;
+      }
+      .tbl-sta {
+        min-width: 0;
+        width: 100%;
+      }
+      .tbl-sta .mono {
+        font-size: 11px;
+      }
       th {
         color: var(--mut);
         font-size: 11px;
@@ -1206,6 +1249,15 @@
           go("checklist");
         },
         close: () => document.querySelector(".ov")?.remove(),
+        opendate: (d) => {
+          const el = document.getElementById(d.t);
+          if (!el) return;
+          try {
+            el.showPicker ? el.showPicker() : el.focus();
+          } catch {
+            el.focus();
+          }
+        },
       };
       document.addEventListener("click", (e) => {
         const b = e.target.closest("[data-a]");
@@ -1745,6 +1797,29 @@
       function isoZi(d) {
         return d.toISOString().slice(0, 10);
       }
+      function fmtDMY(iso) {
+        if (!iso) return "";
+        const [y, m, d] = iso.split("-");
+        return `${d}.${m}.${y}`;
+      }
+      function fmtDT(t) {
+        if (!t) return "—";
+        const d = new Date(t),
+          p = (n) => String(n).padStart(2, "0");
+        return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+      }
+      function fitStaListScroll() {
+        const el = document.getElementById("staListScroll");
+        if (!el) return;
+        el.style.height = "auto";
+        const slack =
+          window.innerHeight - document.documentElement.scrollHeight;
+        const h = el.clientHeight + slack - 8;
+        el.style.height = Math.max(150, h) + "px";
+      }
+      window.addEventListener("resize", () => {
+        if (tab === "statistici") fitStaListScroll();
+      });
 
       async function fetchStatistici() {
         const { data: et } = await sb
@@ -1785,12 +1860,14 @@
             .in("role", ["asm_operator", "asm_remediere", "asm_ctc"]);
           staOperatori = op || [];
         }
-        c.innerHTML = `<div class="card"><h4 style="margin:0 0 8px">Indicatori (ultimele 30 zile)</h4><div id="indic" class="mut">Se calculează...</div></div>
- <div class="card">
-   <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:4px">
-     <div style="max-width:150px;flex:1 1 140px"><div class="mut">Din data</div><input type="date" id="staDe" value="${staDe}"></div>
-     <div style="max-width:150px;flex:1 1 140px"><div class="mut">Până în data</div><input type="date" id="staPana" value="${staPana}"></div>
-     <div style="max-width:170px;flex:1 1 150px"><div class="mut">Model</div><select id="staModel"><option value="">Toate</option>${[
+        const dp = (id, val) =>
+          `<div class="dp"><input type="text" id="${id}Txt" class="dp-txt" data-a="opendate" data-t="${id}" readonly placeholder="ZZ.LL.AAAA" value="${fmtDMY(val)}"><button type="button" class="dp-cal" data-a="opendate" data-t="${id}" title="Alege data">📅</button><input type="date" id="${id}" class="dp-native" value="${val}" tabindex="-1"></div>`;
+        c.innerHTML = `<div class="card" style="padding:8px 14px;margin-bottom:8px"><h4 style="margin:0 0 4px">Indicatori (ultimele 30 zile)</h4><div id="indic" class="mut">Se calculează...</div></div>
+ <div class="card" style="padding:10px 14px 8px;margin-bottom:8px">
+   <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px">
+     <div style="max-width:150px;flex:1 1 140px"><div class="mut" style="margin-bottom:2px">Din data</div>${dp("staDe", staDe)}</div>
+     <div style="max-width:150px;flex:1 1 140px"><div class="mut" style="margin-bottom:2px">Până în data</div>${dp("staPana", staPana)}</div>
+     <div style="max-width:170px;flex:1 1 150px"><div class="mut" style="margin-bottom:2px">Model</div><select id="staModel"><option value="">Toate</option>${[
        ...new Set(staRows.map((r) => r.produs.model).filter(Boolean)),
      ]
        .sort()
@@ -1799,7 +1876,7 @@
            `<option value="${esc(m)}" ${staModel === m ? "selected" : ""}>${esc(m)}</option>`,
        )
        .join("")}</select></div>
-     <div style="max-width:150px;flex:1 1 140px"><div class="mut">Culoare</div><select id="staCuloare"><option value="">Toate</option>${[
+     <div style="max-width:150px;flex:1 1 140px"><div class="mut" style="margin-bottom:2px">Culoare</div><select id="staCuloare"><option value="">Toate</option>${[
        ...new Set(staRows.map((r) => r.produs.culoare).filter(Boolean)),
      ]
        .sort()
@@ -1808,7 +1885,7 @@
            `<option value="${esc(cu)}" ${staCuloare === cu ? "selected" : ""}>${esc(cu)}</option>`,
        )
        .join("")}</select></div>
-     <div style="max-width:170px;flex:1 1 150px"><div class="mut">Stadiu</div><select id="staStadiu"><option value="">Toate</option>${Object.keys(
+     <div style="max-width:170px;flex:1 1 150px"><div class="mut" style="margin-bottom:2px">Stadiu</div><select id="staStadiu"><option value="">Toate</option>${Object.keys(
        ST,
      )
        .map(
@@ -1816,8 +1893,8 @@
            `<option value="${k}" ${staStadiu === k ? "selected" : ""}>${ST[k]}</option>`,
        )
        .join("")}</select></div>
-     <div style="max-width:190px;flex:1 1 160px"><div class="mut">Operator</div><select id="staOperator"><option value="">Toți</option>${staOperatori.map((o) => `<option value="${o.id}" ${staOperator === o.id ? "selected" : ""}>${esc(o.nume || o.email)}</option>`).join("")}</select></div>
-     <div style="max-width:160px;flex:1 1 140px"><div class="mut">Tip activitate</div><select id="staTip"><option value="">Toate</option>${Object.keys(
+     <div style="max-width:190px;flex:1 1 160px"><div class="mut" style="margin-bottom:2px">Operator</div><select id="staOperator"><option value="">Toți</option>${staOperatori.map((o) => `<option value="${o.id}" ${staOperator === o.id ? "selected" : ""}>${esc(o.nume || o.email)}</option>`).join("")}</select></div>
+     <div style="max-width:160px;flex:1 1 140px"><div class="mut" style="margin-bottom:2px">Tip activitate</div><select id="staTip"><option value="">Toate</option>${Object.keys(
        TIP_ACT,
      )
        .map(
@@ -1825,11 +1902,11 @@
            `<option value="${k}" ${staTip === k ? "selected" : ""}>${TIP_ACT[k]}</option>`,
        )
        .join("")}</select></div>
-     <div style="max-width:130px;flex:1 1 120px"><div class="mut">Rezultat</div><select id="staRezultat"><option value="">Toate</option><option value="ok" ${staRezultat === "ok" ? "selected" : ""}>OK</option><option value="nok" ${staRezultat === "nok" ? "selected" : ""}>NOK</option></select></div>
-     <div style="max-width:200px;flex:1 1 160px"><div class="mut">VIN (parțial)</div><input id="staVin" placeholder="Caută VIN..." value="${esc(staVin)}"></div>
+     <div style="max-width:130px;flex:1 1 120px"><div class="mut" style="margin-bottom:2px">Rezultat</div><select id="staRezultat"><option value="">Toate</option><option value="ok" ${staRezultat === "ok" ? "selected" : ""}>OK</option><option value="nok" ${staRezultat === "nok" ? "selected" : ""}>NOK</option></select></div>
+     <div style="max-width:200px;flex:1 1 160px"><div class="mut" style="margin-bottom:2px">VIN (parțial)</div><input id="staVin" placeholder="Caută VIN..." value="${esc(staVin)}"></div>
    </div>
-   <div style="margin:6px 0 10px"><button class="btn gh sm" id="staExport">⬇ Exportă Excel</button></div>
-   <div class="wrap"><div class="list-scroll"><table><thead><tr><th>Nr. crt.</th><th>Data</th><th>Tip activitate</th><th>Operator</th><th>VIN</th><th>Model</th><th>Culoare</th><th>Stadiu curent</th><th>Rezultat</th><th>Durată</th></tr></thead><tbody id="tbSta"></tbody></table></div></div>
+   <div style="margin:2px 0 6px"><button class="btn gh sm" id="staExport">⬇ Exportă Excel</button></div>
+   <div class="wrap"><div class="list-scroll" id="staListScroll" style="max-height:none"><table class="tbl-sta"><thead><tr><th>Nr.</th><th>Data</th><th>Tip</th><th>Operator</th><th>VIN</th><th>Model</th><th>Culoare</th><th>Stadiu</th><th>Rez.</th><th>Durată</th></tr></thead><tbody id="tbSta"></tbody></table></div></div>
    <div class="pg-bar"><button class="btn gh sm" id="staPrev">‹ Anterior</button><span class="mut" id="staInfo"></span><button class="btn gh sm" id="staNext">Următor ›</button></div>
  </div>`;
         const draw = () => {
@@ -1854,7 +1931,7 @@
             pageItems
               .map(
                 (r, i) =>
-                  `<tr><td>${start + i + 1}</td><td>${dt(r.ended_at)}</td><td>${TIP_ACT[r.tip] || esc(r.tip)}</td><td>${esc(nm(r.user_id))}</td><td class="mono">${esc(r.produs.vin || "—")}</td><td>${esc(r.produs.model || "—")}</td><td>${esc(r.produs.culoare || "—")}</td><td>${r.produs.stadiu ? `<span class="pill p-${r.produs.stadiu}">${ST[r.produs.stadiu]}</span>` : "—"}</td><td>${(r.rezultat || "—").toUpperCase()}</td><td>${r.durata_sec ? dur(r.durata_sec * 1e3) : "—"}</td></tr>`,
+                  `<tr><td>${start + i + 1}</td><td>${fmtDT(r.ended_at)}</td><td>${TIP_ACT[r.tip] || esc(r.tip)}</td><td>${esc(nm(r.user_id))}</td><td class="mono">${esc(r.produs.vin || "—")}</td><td>${esc(r.produs.model || "—")}</td><td>${esc(r.produs.culoare || "—")}</td><td>${r.produs.stadiu ? `<span class="pill p-${r.produs.stadiu}">${ST[r.produs.stadiu]}</span>` : "—"}</td><td>${(r.rezultat || "—").toUpperCase()}</td><td>${r.durata_sec ? dur(r.durata_sec * 1e3) : "—"}</td></tr>`,
               )
               .join("") ||
             '<tr><td colspan="10" class="mut">Nicio înregistrare.</td></tr>';
@@ -1863,7 +1940,7 @@
             : "Nicio înregistrare";
           $("#staPrev").disabled = staPage <= 1;
           $("#staNext").disabled = staPage >= pages;
-          fitListScroll();
+          fitStaListScroll();
         };
         const reload = async () => {
           $("#tbSta").innerHTML =
@@ -1873,11 +1950,13 @@
         };
         $("#staDe").onchange = (e) => {
           staDe = e.target.value;
+          $("#staDeTxt").value = fmtDMY(staDe);
           staPage = 1;
           reload();
         };
         $("#staPana").onchange = (e) => {
           staPana = e.target.value;
+          $("#staPanaTxt").value = fmtDMY(staPana);
           staPage = 1;
           reload();
         };
@@ -1929,7 +2008,7 @@
         computeIndicatori().then((x) => {
           const el = $("#indic");
           if (el) el.innerHTML = x;
-          fitListScroll();
+          fitStaListScroll();
         });
       }
 
@@ -1938,6 +2017,7 @@
         const wb = new ExcelJS.Workbook();
         const ws = wb.addWorksheet("Statistici");
         ws.columns = [
+          { header: "Nr. crt.", key: "nr", width: 8 },
           { header: "Data", key: "data", width: 18 },
           { header: "Tip activitate", key: "tip", width: 16 },
           { header: "Operator", key: "operator", width: 22 },
@@ -1949,9 +2029,10 @@
           { header: "Durată", key: "durata", width: 12 },
         ];
         ws.getRow(1).font = { bold: true };
-        staFiltered.forEach((r) =>
+        staFiltered.forEach((r, i) =>
           ws.addRow({
-            data: dt(r.ended_at),
+            nr: i + 1,
+            data: fmtDT(r.ended_at),
             tip: TIP_ACT[r.tip] || r.tip,
             operator: nm(r.user_id),
             vin: r.produs.vin || "—",
