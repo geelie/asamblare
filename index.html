@@ -1566,7 +1566,9 @@
         if (!confirm("Elimini această neregulă?")) return;
         const n = cur().find((x) => x.id === id);
         if (n && n.asm_poze && n.asm_poze.length) {
-          await sb.storage.from(B).remove(n.asm_poze.map((p) => p.storage_path));
+          await sb.storage
+            .from(B)
+            .remove(n.asm_poze.map((p) => p.storage_path));
           await sb.from("asm_poze").delete().eq("neregula_id", id);
         }
         const r = await sb.from("asm_nereguli").delete().eq("id", id);
@@ -1661,7 +1663,11 @@
         stQ = "",
         stPage = 1;
       const PER_PAGE = 30;
-      const TIP_ACT = { asamblare: "Asamblare", remediere: "Remediere", ctc: "CTC" };
+      const TIP_ACT = {
+        asamblare: "Asamblare",
+        remediere: "Remediere",
+        ctc: "CTC",
+      };
       let staDe = "",
         staPana = "",
         staModel = "",
@@ -1832,7 +1838,8 @@
         const el = document.getElementById("staListScroll");
         if (!el) return;
         el.style.height = "auto";
-        const slack = window.innerHeight - document.documentElement.scrollHeight;
+        const slack =
+          window.innerHeight - document.documentElement.scrollHeight;
         const h = el.clientHeight + slack - 8;
         el.style.height = Math.max(150, h) + "px";
       }
@@ -1861,7 +1868,10 @@
             .in("id", ids);
           (pr || []).forEach((p) => (prodMap[p.id] = p));
         }
-        staRows = rows.map((r) => ({ ...r, produs: prodMap[r.asm_produs_id] || {} }));
+        staRows = rows.map((r) => ({
+          ...r,
+          produs: prodMap[r.asm_produs_id] || {},
+        }));
       }
 
       async function vStatistici(c) {
@@ -1883,11 +1893,41 @@
    <div style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:6px">
      <div style="max-width:130px;flex:1 1 120px"><div class="mut" style="margin-bottom:1px">Din data</div>${dp("staDe", staDe)}</div>
      <div style="max-width:130px;flex:1 1 120px"><div class="mut" style="margin-bottom:1px">Până în data</div>${dp("staPana", staPana)}</div>
-     <div style="max-width:170px;flex:1 1 150px"><div class="mut" style="margin-bottom:1px">Model</div><select id="staModel"><option value="">Toate</option>${[...new Set(staRows.map((r) => r.produs.model).filter(Boolean))].sort().map((m) => `<option value="${esc(m)}" ${staModel === m ? "selected" : ""}>${esc(m)}</option>`).join("")}</select></div>
-     <div style="max-width:150px;flex:1 1 140px"><div class="mut" style="margin-bottom:1px">Culoare</div><select id="staCuloare"><option value="">Toate</option>${[...new Set(staRows.map((r) => r.produs.culoare).filter(Boolean))].sort().map((cu) => `<option value="${esc(cu)}" ${staCuloare === cu ? "selected" : ""}>${esc(cu)}</option>`).join("")}</select></div>
-     <div style="max-width:170px;flex:1 1 150px"><div class="mut" style="margin-bottom:1px">Stadiu</div><select id="staStadiu"><option value="">Toate</option>${Object.keys(ST).map((k) => `<option value="${k}" ${staStadiu === k ? "selected" : ""}>${ST[k]}</option>`).join("")}</select></div>
+     <div style="max-width:170px;flex:1 1 150px"><div class="mut" style="margin-bottom:1px">Model</div><select id="staModel"><option value="">Toate</option>${[
+       ...new Set(staRows.map((r) => r.produs.model).filter(Boolean)),
+     ]
+       .sort()
+       .map(
+         (m) =>
+           `<option value="${esc(m)}" ${staModel === m ? "selected" : ""}>${esc(m)}</option>`,
+       )
+       .join("")}</select></div>
+     <div style="max-width:150px;flex:1 1 140px"><div class="mut" style="margin-bottom:1px">Culoare</div><select id="staCuloare"><option value="">Toate</option>${[
+       ...new Set(staRows.map((r) => r.produs.culoare).filter(Boolean)),
+     ]
+       .sort()
+       .map(
+         (cu) =>
+           `<option value="${esc(cu)}" ${staCuloare === cu ? "selected" : ""}>${esc(cu)}</option>`,
+       )
+       .join("")}</select></div>
+     <div style="max-width:170px;flex:1 1 150px"><div class="mut" style="margin-bottom:1px">Stadiu</div><select id="staStadiu"><option value="">Toate</option>${Object.keys(
+       ST,
+     )
+       .map(
+         (k) =>
+           `<option value="${k}" ${staStadiu === k ? "selected" : ""}>${ST[k]}</option>`,
+       )
+       .join("")}</select></div>
      <div style="max-width:190px;flex:1 1 160px"><div class="mut" style="margin-bottom:1px">Operator</div><select id="staOperator"><option value="">Toți</option>${staOperatori.map((o) => `<option value="${o.id}" ${staOperator === o.id ? "selected" : ""}>${esc(o.nume || o.email)}</option>`).join("")}</select></div>
-     <div style="max-width:160px;flex:1 1 140px"><div class="mut" style="margin-bottom:1px">Tip activitate</div><select id="staTip"><option value="">Toate</option>${Object.keys(TIP_ACT).map((k) => `<option value="${k}" ${staTip === k ? "selected" : ""}>${TIP_ACT[k]}</option>`).join("")}</select></div>
+     <div style="max-width:160px;flex:1 1 140px"><div class="mut" style="margin-bottom:1px">Tip activitate</div><select id="staTip"><option value="">Toate</option>${Object.keys(
+       TIP_ACT,
+     )
+       .map(
+         (k) =>
+           `<option value="${k}" ${staTip === k ? "selected" : ""}>${TIP_ACT[k]}</option>`,
+       )
+       .join("")}</select></div>
      <div style="max-width:130px;flex:1 1 120px"><div class="mut" style="margin-bottom:1px">Rezultat</div><select id="staRezultat"><option value="">Toate</option><option value="ok" ${staRezultat === "ok" ? "selected" : ""}>OK</option><option value="nok" ${staRezultat === "nok" ? "selected" : ""}>NOK</option></select></div>
      <div style="max-width:200px;flex:1 1 160px"><div class="mut" style="margin-bottom:1px">VIN (parțial)</div><input id="staVin" placeholder="Caută VIN..." value="${esc(staVin)}"></div>
      <div style="flex:1 1 140px;max-width:170px"><button class="btn gh sm" id="staExport" style="width:100%">⬇ Exportă Excel</button></div>
