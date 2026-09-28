@@ -16,6 +16,7 @@
     />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
     <style>
       /* Design tokens preluate din aplicația de distribuții */
       :root {
@@ -554,6 +555,61 @@
         margin-top: 8px;
         flex-wrap: wrap;
       }
+      /* datepicker ZZ.LL.AAAA */
+      .dp {
+        position: relative;
+      }
+      .dp .dp-txt {
+        cursor: pointer;
+        background: #fff;
+        padding-right: 16px;
+      }
+      .dp .dp-native {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+        pointer-events: none;
+      }
+      /* filtre Statistici: padding vertical minim */
+      .sta-filters input,
+      .sta-filters select {
+        padding-top: 6px;
+        padding-bottom: 6px;
+        min-height: 34px;
+      }
+      /* tabel Statistici: fără scroll orizontal pe desktop, coloane compacte */
+      .tbl-sta th,
+      .tbl-sta td {
+        white-space: normal;
+        word-break: break-word;
+        padding: 3px 6px;
+      }
+      .tbl-sta {
+        min-width: 0;
+        width: 100%;
+      }
+      .tbl-sta .mono {
+        font-size: 11px;
+      }
+      /* pe mobil: revenire la nowrap + glisare orizontală (mai lizibil decât wrap pe litere) */
+      @media (max-width: 820px) {
+        .tbl-sta th,
+        .tbl-sta td {
+          white-space: nowrap;
+          word-break: normal;
+          padding: 4px 8px;
+        }
+        .tbl-sta {
+          min-width: 760px;
+          width: auto;
+        }
+        .tbl-sta .mono {
+          font-size: 12.5px;
+        }
+      }
       th {
         color: var(--mut);
         font-size: 11px;
@@ -795,6 +851,7 @@
       const ADM = [
         ["stadii", "Stadii produse"],
         ["checklist", "Checklist"],
+        ["statistici", "Statistici"],
         ["setari", "Setări"],
       ];
       const TABS = {
@@ -840,8 +897,7 @@
         tmr = null,
         rt = null,
         recoverMode = false,
-        ultimulModel = "",
-        camStream = null;
+        ultimulModel = "";
       const modeleExpandate = new Set();
       let ctcExpandat = false;
       const nm = (id) => names[id] || "—",
@@ -1040,6 +1096,7 @@
         ctc: vCtc,
         stadii: vStadii,
         checklist: vCheck,
+        statistici: vStatistici,
         setari: vSet,
       };
       function fitListScroll() {
@@ -1093,6 +1150,7 @@
         },
         rez: (d) => setRez(+d.i, d.v),
         ner: (d) => addNer(d.c || null),
+        rmner: (d) => rmNer(d.id),
         back: () => go(tab),
         fin: async () => {
           await rpc(
@@ -1203,63 +1261,15 @@
           toast(`Criterii copiate la modelul „${noul}".`);
           go("checklist");
         },
-        close: () => {
-          document.querySelector(".ov")?.remove();
-          if (camStream) {
-            camStream.getTracks().forEach((tr) => tr.stop());
-            camStream = null;
-          }
-        },
-        camopen: async (d) => {
-          const o = document.createElement("div");
-          o.className = "ov";
-          o.innerHTML = `<div><h3 style="margin:0 0 10px">Fotografiază</h3><video id="camv" autoplay playsinline muted style="width:100%;border-radius:12px;background:#000;max-height:60vh;object-fit:cover"></video><div class="row" style="margin-top:12px;justify-content:center;gap:10px"><button class="btn gh" data-a="close">Anulează</button><button class="btn" data-a="camshot" data-id="${d.id}" data-tip="${d.tip}">📷 Fotografiază</button></div></div>`;
-          document.body.appendChild(o);
+        close: () => document.querySelector(".ov")?.remove(),
+        opendate: (d) => {
+          const el = document.getElementById(d.t);
+          if (!el) return;
           try {
-            camStream = await navigator.mediaDevices.getUserMedia({
-              video: { facingMode: { ideal: "environment" } },
-              audio: false,
-            });
-            const v = $("#camv");
-            if (v) v.srcObject = camStream;
-          } catch (err) {
-            act.close();
-            toast(
-              "Nu s-a putut accesa camera (" +
-                (err.message || err.name) +
-                "). Alege o poză din fișiere.",
-              1,
-            );
-            const inp = document.createElement("input");
-            inp.type = "file";
-            inp.accept = "image/*";
-            inp.dataset.id = d.id;
-            inp.dataset.tip = d.tip;
-            inp.dataset.c = "foto";
-            inp.style.display = "none";
-            document.body.appendChild(inp);
-            inp.addEventListener("change", () => {
-              foto(inp);
-              inp.remove();
-            });
-            inp.click();
+            el.showPicker ? el.showPicker() : el.focus();
+          } catch {
+            el.focus();
           }
-        },
-        camshot: async (d) => {
-          const v = $("#camv");
-          if (!v || !v.videoWidth) return;
-          const cv = document.createElement("canvas");
-          cv.width = v.videoWidth;
-          cv.height = v.videoHeight;
-          cv.getContext("2d").drawImage(v, 0, 0, cv.width, cv.height);
-          cv.toBlob(
-            async (blob) => {
-              act.close();
-              if (blob) await subiFoto(d.id, d.tip, blob);
-            },
-            "image/jpeg",
-            0.9,
-          );
         },
       };
       document.addEventListener("click", (e) => {
@@ -1472,9 +1482,9 @@
             )
             .join("");
       const fotoBtn = (id, tip, lbl) =>
-        `<button type="button" class="btn gh sm" data-a="camopen" data-id="${id}" data-tip="${tip}">📷 ${lbl}</button>`;
+        `<label class="lbl">📷 ${lbl}<input type="file" accept="image/*" capture="environment" data-c="foto" data-id="${id}" data-tip="${tip}"></label>`;
       function nerBox(n) {
-        return `<div style="margin-bottom:8px"><textarea data-c="desc" data-id="${n.id}" placeholder="Descrie neregula...">${esc(n.descriere)}</textarea><div class="ph">${imgs(n, "inainte")}${fotoBtn(n.id, "inainte", "Adaugă poză")}</div></div>`;
+        return `<div style="margin-bottom:8px;border:1px solid var(--line);border-radius:10px;padding:8px"><div style="display:flex;justify-content:flex-end;margin-bottom:4px"><button type="button" class="btn gh sm" data-a="rmner" data-id="${n.id}" title="Elimină neregula" style="padding:2px 9px;min-height:26px">✕</button></div><textarea data-c="desc" data-id="${n.id}" placeholder="Descrie neregula...">${esc(n.descriere)}</textarea><div class="ph">${imgs(n, "inainte")}${fotoBtn(n.id, "inainte", "Adaugă poză")}</div></div>`;
       }
       async function fisa(id) {
         if (!(await loadF(id))) return;
@@ -1552,6 +1562,17 @@
         if (r.error) return toast(r.error.message, 1);
         fisa(F.e.id);
       }
+      async function rmNer(id) {
+        if (!confirm("Elimini această neregulă?")) return;
+        const n = cur().find((x) => x.id === id);
+        if (n && n.asm_poze && n.asm_poze.length) {
+          await sb.storage.from(B).remove(n.asm_poze.map((p) => p.storage_path));
+          await sb.from("asm_poze").delete().eq("neregula_id", id);
+        }
+        const r = await sb.from("asm_nereguli").delete().eq("id", id);
+        if (r.error) return toast(r.error.message, 1);
+        fisa(F.e.id);
+      }
       async function setRez(i, v) {
         const s = F.sab[i],
           has = cur().filter((n) => n.criteriu_text === s.text);
@@ -1594,26 +1615,23 @@
         c.getContext("2d").drawImage(b, 0, 0, c.width, c.height);
         return new Promise((r) => c.toBlob(r, "image/jpeg", 0.8));
       }
-      async function subiFoto(id, tip, blob) {
+      async function foto(inp) {
+        const f = inp.files[0];
+        if (!f) return;
         toast("Se încarcă poza...");
-        const bl = await comp(blob),
-          path = `${F.e.asm_produs_id}/${id}/${Date.now()}.jpg`;
+        const bl = await comp(f),
+          path = `${F.e.asm_produs_id}/${inp.dataset.id}/${Date.now()}.jpg`;
         const u = await sb.storage
           .from(B)
           .upload(path, bl, { contentType: "image/jpeg" });
         if (u.error) return toast(u.error.message, 1);
         const r = await sb.from("asm_poze").insert({
-          neregula_id: id,
-          tip: tip,
+          neregula_id: inp.dataset.id,
+          tip: inp.dataset.tip,
           storage_path: path,
         });
         if (r.error) return toast(r.error.message, 1);
         F.e.tip === "remediere" ? rem(F.e.id) : fisa(F.e.id);
-      }
-      async function foto(inp) {
-        const f = inp.files[0];
-        if (!f) return;
-        await subiFoto(inp.dataset.id, inp.dataset.tip, f);
       }
 
       /* ---------- FIȘĂ REMEDIERE ---------- */
@@ -1643,6 +1661,20 @@
         stQ = "",
         stPage = 1;
       const PER_PAGE = 30;
+      const TIP_ACT = { asamblare: "Asamblare", remediere: "Remediere", ctc: "CTC" };
+      let staDe = "",
+        staPana = "",
+        staModel = "",
+        staCuloare = "",
+        staStadiu = "",
+        staOperator = "",
+        staTip = "",
+        staRezultat = "",
+        staVin = "",
+        staPage = 1,
+        staRows = [],
+        staOperatori = [],
+        staFiltered = [];
       async function vStadii(c) {
         const { data } = await sb
             .from("asm_produse")
@@ -1681,8 +1713,7 @@
        `<button class="kpi ${stF === k ? "on" : ""}" data-a="kpi" data-s="${k}"><span class="pill p-${k}">${ST[k]}</span><b>${all.filter((p) => p.stadiu === k).length}</b></button>`,
    )
    .join("")}</div>
- <div class="card"><input id="sq" placeholder="Caută VIN (parțial)..." value="${esc(stQ)}" style="max-width:300px;margin-bottom:8px"><div class="wrap"><div class="list-scroll"><table><thead><tr><th>Nr. crt.</th><th>VIN</th><th>Model</th><th>Culoare</th><th>Stadiu</th><th>De cât timp</th><th>Operator</th><th>Remedieri</th><th></th></tr></thead><tbody id="tb"></tbody></table></div></div><div class="pg-bar"><button class="btn gh sm" id="pgPrev">‹ Anterior</button><span class="mut" id="pgInfo"></span><button class="btn gh sm" id="pgNext">Următor ›</button></div></div>
- <div class="card"><h4 style="margin:0 0 8px">Indicatori (ultimele 30 zile)</h4><div id="indic" class="mut">Se calculează...</div></div>`;
+ <div class="card"><input id="sq" placeholder="Caută VIN (parțial)..." value="${esc(stQ)}" style="max-width:300px;margin-bottom:8px"><div class="wrap"><div class="list-scroll"><table><thead><tr><th>Nr. crt.</th><th>VIN</th><th>Model</th><th>Culoare</th><th>Stadiu</th><th>De cât timp</th><th>Operator</th><th>Remedieri</th><th></th></tr></thead><tbody id="tb"></tbody></table></div></div><div class="pg-bar"><button class="btn gh sm" id="pgPrev">‹ Anterior</button><span class="mut" id="pgInfo"></span><button class="btn gh sm" id="pgNext">Următor ›</button></div></div>`;
         const draw = () => {
           const q = stQ.toLowerCase();
           const filtered = all.filter(
@@ -1725,12 +1756,6 @@
           stPage = 1;
           draw();
         };
-        $("#indic").innerHTML = "Se calculează...";
-        computeIndicatori().then((x) => {
-          const el = $("#indic");
-          if (el) el.innerHTML = x;
-          fitListScroll();
-        });
       }
 
       async function computeIndicatori() {
@@ -1786,7 +1811,236 @@
         }
         const card = (l, v) =>
           `<div><div class="mut">${l}</div><b style="font-size:20px">${v}</b></div>`;
-        return `<div class="kpis" style="margin-top:0">${card("Timp mediu asamblare", asmOk.length ? dur(avg(asmOk) * 1e3) : "—")}${card("Aprobate din prima la CTC", pctPrima)}${card("Timp mediu remediere", remOk.length ? dur(avg(remOk) * 1e3) : "—")}${card("Criteriu cu cele mai multe NOK", esc(topCrit))}</div>`;
+        return `<div class="kpis" style="margin-top:0;margin-bottom:0">${card("Timp mediu asamblare", asmOk.length ? dur(avg(asmOk) * 1e3) : "—")}${card("Aprobate din prima la CTC", pctPrima)}${card("Timp mediu remediere", remOk.length ? dur(avg(remOk) * 1e3) : "—")}${card("Criteriu cu cele mai multe NOK", esc(topCrit))}</div>`;
+      }
+
+      function isoZi(d) {
+        return d.toISOString().slice(0, 10);
+      }
+      function fmtDMY(iso) {
+        if (!iso) return "";
+        const [y, m, d] = iso.split("-");
+        return `${d}.${m}.${y}`;
+      }
+      function fmtDT(t) {
+        if (!t) return "—";
+        const d = new Date(t),
+          p = (n) => String(n).padStart(2, "0");
+        return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+      }
+      function fitStaListScroll() {
+        const el = document.getElementById("staListScroll");
+        if (!el) return;
+        el.style.height = "auto";
+        const slack = window.innerHeight - document.documentElement.scrollHeight;
+        const h = el.clientHeight + slack - 8;
+        el.style.height = Math.max(150, h) + "px";
+      }
+      window.addEventListener("resize", () => {
+        if (tab === "statistici") fitStaListScroll();
+      });
+
+      async function fetchStatistici() {
+        const { data: et } = await sb
+          .from("asm_etape")
+          .select(
+            "id,asm_produs_id,tip,user_id,rezultat,durata_sec,started_at,ended_at",
+          )
+          .not("ended_at", "is", null)
+          .gte("ended_at", staDe + "T00:00:00")
+          .lte("ended_at", staPana + "T23:59:59")
+          .order("ended_at", { ascending: false })
+          .limit(5000);
+        const rows = et || [];
+        const ids = [...new Set(rows.map((r) => r.asm_produs_id))];
+        let prodMap = {};
+        if (ids.length) {
+          const { data: pr } = await sb
+            .from("asm_produse")
+            .select("id,vin,model,culoare,stadiu")
+            .in("id", ids);
+          (pr || []).forEach((p) => (prodMap[p.id] = p));
+        }
+        staRows = rows.map((r) => ({ ...r, produs: prodMap[r.asm_produs_id] || {} }));
+      }
+
+      async function vStatistici(c) {
+        if (!staDe || !staPana) {
+          staPana = isoZi(new Date());
+          staDe = isoZi(new Date(Date.now() - 30 * 864e5));
+        }
+        if (!staOperatori.length) {
+          const { data: op } = await sb
+            .from("profiles")
+            .select("id,nume,email,role")
+            .in("role", ["asm_operator", "asm_remediere", "asm_ctc"]);
+          staOperatori = op || [];
+        }
+        const dp = (id, val) =>
+          `<div class="dp"><input type="text" id="${id}Txt" class="dp-txt" data-a="opendate" data-t="${id}" readonly placeholder="ZZ.LL.AAAA" value="${fmtDMY(val)}"><input type="date" id="${id}" class="dp-native" value="${val}" tabindex="-1"></div>`;
+        c.innerHTML = `<div class="card" style="padding:6px 14px;margin-bottom:6px"><h4 style="margin:0 0 3px">Indicatori (ultimele 30 zile)</h4><div id="indic" class="mut">Se calculează...</div></div>
+ <div class="card sta-filters" style="padding:8px 14px;margin-bottom:6px">
+   <div style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:6px">
+     <div style="max-width:130px;flex:1 1 120px"><div class="mut" style="margin-bottom:1px">Din data</div>${dp("staDe", staDe)}</div>
+     <div style="max-width:130px;flex:1 1 120px"><div class="mut" style="margin-bottom:1px">Până în data</div>${dp("staPana", staPana)}</div>
+     <div style="max-width:170px;flex:1 1 150px"><div class="mut" style="margin-bottom:1px">Model</div><select id="staModel"><option value="">Toate</option>${[...new Set(staRows.map((r) => r.produs.model).filter(Boolean))].sort().map((m) => `<option value="${esc(m)}" ${staModel === m ? "selected" : ""}>${esc(m)}</option>`).join("")}</select></div>
+     <div style="max-width:150px;flex:1 1 140px"><div class="mut" style="margin-bottom:1px">Culoare</div><select id="staCuloare"><option value="">Toate</option>${[...new Set(staRows.map((r) => r.produs.culoare).filter(Boolean))].sort().map((cu) => `<option value="${esc(cu)}" ${staCuloare === cu ? "selected" : ""}>${esc(cu)}</option>`).join("")}</select></div>
+     <div style="max-width:170px;flex:1 1 150px"><div class="mut" style="margin-bottom:1px">Stadiu</div><select id="staStadiu"><option value="">Toate</option>${Object.keys(ST).map((k) => `<option value="${k}" ${staStadiu === k ? "selected" : ""}>${ST[k]}</option>`).join("")}</select></div>
+     <div style="max-width:190px;flex:1 1 160px"><div class="mut" style="margin-bottom:1px">Operator</div><select id="staOperator"><option value="">Toți</option>${staOperatori.map((o) => `<option value="${o.id}" ${staOperator === o.id ? "selected" : ""}>${esc(o.nume || o.email)}</option>`).join("")}</select></div>
+     <div style="max-width:160px;flex:1 1 140px"><div class="mut" style="margin-bottom:1px">Tip activitate</div><select id="staTip"><option value="">Toate</option>${Object.keys(TIP_ACT).map((k) => `<option value="${k}" ${staTip === k ? "selected" : ""}>${TIP_ACT[k]}</option>`).join("")}</select></div>
+     <div style="max-width:130px;flex:1 1 120px"><div class="mut" style="margin-bottom:1px">Rezultat</div><select id="staRezultat"><option value="">Toate</option><option value="ok" ${staRezultat === "ok" ? "selected" : ""}>OK</option><option value="nok" ${staRezultat === "nok" ? "selected" : ""}>NOK</option></select></div>
+     <div style="max-width:200px;flex:1 1 160px"><div class="mut" style="margin-bottom:1px">VIN (parțial)</div><input id="staVin" placeholder="Caută VIN..." value="${esc(staVin)}"></div>
+     <div style="flex:1 1 140px;max-width:170px"><button class="btn gh sm" id="staExport" style="width:100%">⬇ Exportă Excel</button></div>
+   </div>
+   <div class="wrap"><div class="list-scroll" id="staListScroll" style="max-height:none"><table class="tbl-sta"><thead><tr><th>Nr.</th><th>Data</th><th>Tip</th><th>Operator</th><th>VIN</th><th>Model</th><th>Culoare</th><th>Stadiu</th><th>Rez.</th><th>Durată</th></tr></thead><tbody id="tbSta"></tbody></table></div></div>
+   <div class="pg-bar"><button class="btn gh sm" id="staPrev">‹ Anterior</button><span class="mut" id="staInfo"></span><button class="btn gh sm" id="staNext">Următor ›</button></div>
+ </div>`;
+        const draw = () => {
+          const q = staVin.toLowerCase();
+          staFiltered = staRows.filter(
+            (r) =>
+              (!staModel || r.produs.model === staModel) &&
+              (!staCuloare || r.produs.culoare === staCuloare) &&
+              (!staStadiu || r.produs.stadiu === staStadiu) &&
+              (!staOperator || r.user_id === staOperator) &&
+              (!staTip || r.tip === staTip) &&
+              (!staRezultat || r.rezultat === staRezultat) &&
+              (r.produs.vin || "").toLowerCase().includes(q),
+          );
+          const total = staFiltered.length,
+            pages = Math.max(1, Math.ceil(total / PER_PAGE));
+          if (staPage > pages) staPage = pages;
+          if (staPage < 1) staPage = 1;
+          const start = (staPage - 1) * PER_PAGE,
+            pageItems = staFiltered.slice(start, start + PER_PAGE);
+          $("#tbSta").innerHTML =
+            pageItems
+              .map(
+                (r, i) =>
+                  `<tr><td>${start + i + 1}</td><td>${fmtDT(r.ended_at)}</td><td>${TIP_ACT[r.tip] || esc(r.tip)}</td><td>${esc(nm(r.user_id))}</td><td class="mono">${esc(r.produs.vin || "—")}</td><td>${esc(r.produs.model || "—")}</td><td>${esc(r.produs.culoare || "—")}</td><td>${r.produs.stadiu ? `<span class="pill p-${r.produs.stadiu}">${ST[r.produs.stadiu]}</span>` : "—"}</td><td>${(r.rezultat || "—").toUpperCase()}</td><td>${r.durata_sec ? dur(r.durata_sec * 1e3) : "—"}</td></tr>`,
+              )
+              .join("") ||
+            '<tr><td colspan="10" class="mut">Nicio înregistrare.</td></tr>';
+          $("#staInfo").textContent = total
+            ? `Pagina ${staPage} din ${pages} (${total} înregistrări)`
+            : "Nicio înregistrare";
+          $("#staPrev").disabled = staPage <= 1;
+          $("#staNext").disabled = staPage >= pages;
+          fitStaListScroll();
+        };
+        const reload = async () => {
+          $("#tbSta").innerHTML =
+            '<tr><td colspan="10" class="mut">Se încarcă...</td></tr>';
+          await fetchStatistici();
+          draw();
+        };
+        $("#staDe").onchange = (e) => {
+          staDe = e.target.value;
+          $("#staDeTxt").value = fmtDMY(staDe);
+          staPage = 1;
+          reload();
+        };
+        $("#staPana").onchange = (e) => {
+          staPana = e.target.value;
+          $("#staPanaTxt").value = fmtDMY(staPana);
+          staPage = 1;
+          reload();
+        };
+        $("#staModel").onchange = (e) => {
+          staModel = e.target.value;
+          staPage = 1;
+          draw();
+        };
+        $("#staCuloare").onchange = (e) => {
+          staCuloare = e.target.value;
+          staPage = 1;
+          draw();
+        };
+        $("#staStadiu").onchange = (e) => {
+          staStadiu = e.target.value;
+          staPage = 1;
+          draw();
+        };
+        $("#staOperator").onchange = (e) => {
+          staOperator = e.target.value;
+          staPage = 1;
+          draw();
+        };
+        $("#staTip").onchange = (e) => {
+          staTip = e.target.value;
+          staPage = 1;
+          draw();
+        };
+        $("#staRezultat").onchange = (e) => {
+          staRezultat = e.target.value;
+          staPage = 1;
+          draw();
+        };
+        $("#staVin").oninput = (e) => {
+          staVin = e.target.value;
+          staPage = 1;
+          draw();
+        };
+        $("#staPrev").onclick = () => {
+          staPage--;
+          draw();
+        };
+        $("#staNext").onclick = () => {
+          staPage++;
+          draw();
+        };
+        $("#staExport").onclick = () => exportStatisticiExcel();
+        await reload();
+        computeIndicatori().then((x) => {
+          const el = $("#indic");
+          if (el) el.innerHTML = x;
+          fitStaListScroll();
+        });
+      }
+
+      async function exportStatisticiExcel() {
+        if (!staFiltered.length) return toast("Nu există date de exportat.", 1);
+        const wb = new ExcelJS.Workbook();
+        const ws = wb.addWorksheet("Statistici");
+        ws.columns = [
+          { header: "Nr. crt.", key: "nr", width: 8 },
+          { header: "Data", key: "data", width: 18 },
+          { header: "Tip activitate", key: "tip", width: 16 },
+          { header: "Operator", key: "operator", width: 22 },
+          { header: "VIN", key: "vin", width: 20 },
+          { header: "Model", key: "model", width: 16 },
+          { header: "Culoare", key: "culoare", width: 14 },
+          { header: "Stadiu curent", key: "stadiu", width: 16 },
+          { header: "Rezultat", key: "rezultat", width: 12 },
+          { header: "Durată", key: "durata", width: 12 },
+        ];
+        ws.getRow(1).font = { bold: true };
+        staFiltered.forEach((r, i) =>
+          ws.addRow({
+            nr: i + 1,
+            data: fmtDT(r.ended_at),
+            tip: TIP_ACT[r.tip] || r.tip,
+            operator: nm(r.user_id),
+            vin: r.produs.vin || "—",
+            model: r.produs.model || "—",
+            culoare: r.produs.culoare || "—",
+            stadiu: r.produs.stadiu ? ST[r.produs.stadiu] : "—",
+            rezultat: (r.rezultat || "—").toUpperCase(),
+            durata: r.durata_sec ? dur(r.durata_sec * 1e3) : "—",
+          }),
+        );
+        const buf = await wb.xlsx.writeBuffer();
+        const blob = new Blob([buf], {
+          type: "application/octet-stream",
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `statistici-asamblare_${staDe}_${staPana}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
       }
 
       async function ist(id) {
