@@ -1,6 +1,19 @@
 <!doctype html>
 <html lang="ro">
   <head>
+    <!-- Legătura către Manifest -->
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#111827" />
+
+    <!-- Setări pentru ecran complet pe mobil -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <link rel="apple-touch-icon" href="icon-192.png" />
     <meta charset="utf-8" />
     <meta
       name="viewport"
@@ -2593,6 +2606,18 @@
         c.innerHTML = `<div class="card" style="max-width:420px">${f("max_in_lucru", "Produse simultane per utilizator")}${f("prag_alerta_ore", "Alertă produs în lucru (ore)")}${f("poze_obligatorii", "Poză obligatorie la fiecare neregulă", "checkbox")}</div>`;
       }
       boot0();
+    </script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker
+            .register("./sw.js")
+            .then((reg) => console.log("Service Worker înregistrat cu succes!"))
+            .catch((err) =>
+              console.error("Eroare la înregistrarea Service Worker:", err),
+            );
+        });
+      }
     </script>
   </body>
 </html>
