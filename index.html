@@ -850,6 +850,39 @@
         display: flex;
         align-items: center;
       }
+      /* rol (culoare diferită per rol) deasupra, nume alb mai gros dedesubt */
+      header .who {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 2px;
+        line-height: 1.2;
+      }
+      header .who .role {
+        font-size: 13px;
+        font-weight: 700;
+        color: #94a3b8;
+      }
+      header .who .role-asm_operator {
+        color: #f0a93b;
+      }
+      header .who .role-asm_remediere {
+        color: #f87171;
+      }
+      header .who .role-asm_ctc {
+        color: #38bdf8;
+      }
+      header .who .role-asm_admin {
+        color: #2dd4bf;
+      }
+      header .who .role-superadmin {
+        color: #c084fc;
+      }
+      header .who .uname {
+        font-size: 14px;
+        font-weight: 600;
+        color: #fff;
+      }
 
       .logo-auth {
         width: 300px; /* mai mic decât înainte (360px) */
@@ -1081,7 +1114,7 @@
         (pr || []).forEach((x) => (names[x.id] = x.nume || x.email));
         names[me.id] = me.nume || me.email;
         $("#app").innerHTML =
-          `<div class="topbar"><header><div><img src="logo.png" alt="Asamblare Logo" class="logo-header"><small>· ${ROL[p.role]} · ${esc(names[me.id])}</small></div><button class="btn gh sm" style="color:#fff;border-color:#475569" id="lo">Deconectare</button></header><nav>${TABS[p.role].map((t) => `<button data-a="tab" data-t="${t[0]}">${t[1]}</button>`).join("")}</nav></div><main id="c"></main>`;
+          `<div class="topbar"><header><div><img src="logo.png" alt="Asamblare Logo" class="logo-header"><div class="who"><span class="role role-${p.role}">${ROL[p.role]}</span><span class="uname">${esc(names[me.id])}</span></div></div><button class="btn gh sm" style="color:#fff;border-color:#475569" id="lo">Deconectare</button></header><nav>${TABS[p.role].map((t) => `<button data-a="tab" data-t="${t[0]}">${t[1]}</button>`).join("")}</nav></div><main id="c"></main>`;
         $("#lo").onclick = () => sb.auth.signOut();
         if (rt) sb.removeChannel(rt);
         rt = sb
