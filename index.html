@@ -834,17 +834,29 @@
       }
       /* Stiluri pentru logo */
       .logo-header {
-        height: 48px; /* Ajustează înălțimea în funcție de logo-ul tău */
+        height: 72px; /* = înălțimea benzii închise; fără margini sus/jos/stânga */
         width: auto;
+        display: block;
         vertical-align: middle;
-        margin-right: 8px;
+        margin: 0 8px 0 0;
+      }
+      /* logo lipit de marginile benzii (sus, jos, stânga) */
+      header {
+        padding-top: env(safe-area-inset-top, 0px);
+        padding-bottom: 0;
+        padding-left: env(safe-area-inset-left, 0px);
+      }
+      header > div:first-child {
+        display: flex;
+        align-items: center;
       }
 
       .logo-auth {
-        max-width: 360px; /* Ajustează lățimea pentru fereastra de login */
+        width: 300px; /* mai mic decât înainte (360px) */
+        max-width: 100%; /* nu depășește lățimea ferestrei de login */
         height: auto;
         display: block;
-        margin: 0 auto 14px auto; /* Centrează logo-ul și lasă spațiu dedesubt */
+        margin: 0 auto 14px auto; /* centrat pe aceeași axă cu fereastra de login */
       }
     </style>
   </head>
