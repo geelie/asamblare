@@ -832,6 +832,20 @@
           font-size: 16px;
         }
       }
+      /* Stiluri pentru logo */
+      .logo-header {
+        height: 24px; /* Ajustează înălțimea în funcție de logo-ul tău */
+        width: auto;
+        vertical-align: middle;
+        margin-right: 8px;
+      }
+
+      .logo-auth {
+        max-width: 180px; /* Ajustează lățimea pentru fereastra de login */
+        height: auto;
+        display: block;
+        margin: 0 auto 14px auto; /* Centrează logo-ul și lasă spațiu dedesubt */
+      }
     </style>
   </head>
   <body>
@@ -951,7 +965,7 @@
       function renderSetPassword() {
         clearInterval(tmr);
         $("#app").innerHTML =
-          `<div class="auth"><h2>⚙️ Asamblare</h2><div class="card">
+          `<div class="auth"><img src="logo.png" alt="Asamblare Logo" class="logo-auth"><div class="card">
  <p class="mut">Alege o parolă nouă pentru cont.</p>
  <input id="pw1" type="password" placeholder="Parolă nouă (minim 6 caractere)" autocomplete="new-password">
  <input id="pw2" type="password" placeholder="Confirmă parola nouă" autocomplete="new-password">
@@ -980,7 +994,7 @@
       function authView(mode = "login") {
         clearInterval(tmr);
         $("#app").innerHTML =
-          `<div class="auth"><h2>⚙️ Asamblare</h2><div class="card">
+          `<div class="auth"><img src="logo.png" alt="Asamblare Logo" class="logo-auth"><div class="card">
  <input id="em" type="email" placeholder="Email" autocomplete="username">
  ${mode === "forgot" ? "" : '<input id="pw" type="password" placeholder="Parolă (minim 6 caractere)" autocomplete="current-password">'}
  <button class="btn" style="width:100%" id="go">${{ login: "Autentificare", signup: "Creează cont", forgot: "Trimite link de resetare" }[mode]}</button>
@@ -1055,7 +1069,7 @@
         (pr || []).forEach((x) => (names[x.id] = x.nume || x.email));
         names[me.id] = me.nume || me.email;
         $("#app").innerHTML =
-          `<div class="topbar"><header><div><b>⚙️ Asamblare</b> <small>· ${ROL[p.role]} · ${esc(names[me.id])}</small></div><button class="btn gh sm" style="color:#fff;border-color:#475569" id="lo">Deconectare</button></header><nav>${TABS[p.role].map((t) => `<button data-a="tab" data-t="${t[0]}">${t[1]}</button>`).join("")}</nav></div><main id="c"></main>`;
+          `<div class="topbar"><header><div><img src="logo.png" alt="Asamblare Logo" class="logo-header"><small>· ${ROL[p.role]} · ${esc(names[me.id])}</small></div><button class="btn gh sm" style="color:#fff;border-color:#475569" id="lo">Deconectare</button></header><nav>${TABS[p.role].map((t) => `<button data-a="tab" data-t="${t[0]}">${t[1]}</button>`).join("")}</nav></div><main id="c"></main>`;
         $("#lo").onclick = () => sb.auth.signOut();
         if (rt) sb.removeChannel(rt);
         rt = sb
