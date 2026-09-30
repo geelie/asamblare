@@ -851,25 +851,60 @@
         align-items: center;
       }
       /* rol (culoare diferită per rol) deasupra, nume alb mai gros dedesubt */
+      header {
+        --hf: 13px; /* aceeași mărime pentru rol/nume și textele butoanelor */
+        --hl: 168px; /* lungimea liniilor albe (stânga = dreapta pe desktop) */
+      }
       header .who {
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        gap: 2px;
+        position: relative;
+        align-self: stretch;
+        min-width: var(--hl);
+        display: grid;
+        grid-template-rows: 1fr 1fr; /* rol = jumătatea de sus, nume = jumătatea de jos */
+        grid-template-columns: minmax(0, 1fr);
         line-height: 1.2;
       }
+      header .who::before {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 0;
+        width: var(--hl);
+        height: 1px;
+        background: linear-gradient(
+          to right,
+          #fff 0%,
+          #fff 70%,
+          rgba(255, 255, 255, 0) 100%
+        ); /* pornește lângă logo, se pierde spre dreapta */
+        pointer-events: none;
+      }
+      header .who .role,
+      header .who .uname {
+        display: flex;
+        align-items: center; /* centrat vertical în jumătatea lui */
+        font-size: var(--hf);
+      }
       header .who .role {
-        font-size: 13px;
         font-weight: 700;
         color: #94a3b8;
       }
-      header .who .role-asm_operator { color: #f0a93b; }
-      header .who .role-asm_remediere { color: #f87171; }
-      header .who .role-asm_ctc { color: #38bdf8; }
-      header .who .role-asm_admin { color: #2dd4bf; }
-      header .who .role-superadmin { color: #c084fc; }
+      header .who .role-asm_operator {
+        color: #f0a93b;
+      }
+      header .who .role-asm_remediere {
+        color: #f87171;
+      }
+      header .who .role-asm_ctc {
+        color: #38bdf8;
+      }
+      header .who .role-asm_admin {
+        color: #2dd4bf;
+      }
+      header .who .role-superadmin {
+        color: #c084fc;
+      }
       header .who .uname {
-        font-size: 14px;
         font-weight: 600;
         color: #fff;
       }
@@ -886,8 +921,11 @@
         content: "";
         position: absolute;
         top: 50%;
-        left: 0;
-        right: calc(-16px - env(safe-area-inset-right, 0px)); /* pornește din marginea dreaptă */
+        left: auto;
+        width: var(--hl);
+        right: calc(
+          -16px - env(safe-area-inset-right, 0px)
+        ); /* pornește din marginea dreaptă */
         height: 1px;
         background: linear-gradient(
           to left,
@@ -905,6 +943,7 @@
         width: 100%;
         min-height: 32px;
         padding: 5px 12px;
+        font-size: var(--hf);
         white-space: nowrap;
       }
       /* telefoane: toate elementele antetului pe aceeași linie */
@@ -924,9 +963,16 @@
           flex: 1 1 auto;
           min-width: 0;
         }
+        header .who::before {
+          width: min(
+            var(--hl),
+            calc(100% - 8px)
+          ); /* nu se unește cu linia din dreapta */
+        }
         header .who .role,
         header .who .uname {
           display: block;
+          align-self: center;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis; /* text lung => "..." în loc de rând nou */
@@ -934,11 +980,17 @@
         header .hdr-actions {
           flex: 0 0 auto;
         }
+        header .hdr-actions::before {
+          left: 0;
+          width: auto; /* pe mobil linia din dreapta merge de la butoane la margine */
+        }
       }
       @media (max-width: 400px) {
+        header {
+          --hf: 12px;
+        }
         header .hdr-actions .btn {
           padding: 5px 8px;
-          font-size: 12px;
         }
       }
 
