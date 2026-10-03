@@ -1046,6 +1046,7 @@
           ["lucru", "În lucru"],
         ],
         asm_ctc: [
+          ["prioritare", "Prioritare"],
           ["ctc", "De verificat"],
           ["lucru", "În lucru"],
         ],
@@ -1372,6 +1373,7 @@
         lucru: vLucru,
         remediat: vRem,
         ctc: vCtc,
+        prioritare: vPrioritare,
         stadii: vStadii,
         checklist: vCheck,
         statistici: vStatistici,
@@ -1691,6 +1693,27 @@
           "Preia pentru remediere",
           1,
         );
+      }
+      /* ---------- PRIORITARE CTC (cerute din Comenzi, aplicația de distribuție) ---------- */
+      async function vPrioritare(c) {
+        const { data } = await sb
+          .from("asm_produse")
+          .select("*")
+          .eq("ctc_prioritar", true)
+          .eq("stadiu", "asteapta_ctc")
+          .is("operator_curent", null)
+          .order("ctc_solicitat_la");
+        const all = data || [];
+        c.innerHTML =
+          `<div class="mut" style="margin-bottom:8px">Verificări CTC solicitate cu prioritate: ${all.length}</div><div class="list-scroll" id="lst">` +
+          (all
+            .map(
+              (p) =>
+                `<div class="card row"><div>${prodTxt(p)}<div class="mut"><span class="pill p-in_remediere">Prioritar</span> ${p.ctc_comanda ? "comanda " + esc(p.ctc_comanda) + " · " : ""}cerut de ${esc(nm(p.ctc_solicitat_de))} acum ${dur(Date.now() - new Date(p.ctc_solicitat_la))}${p.nr_remedieri ? ` · reverificare (remediat de ${p.nr_remedieri}×)` : ""}</div></div><button class="btn" data-a="pctc" data-id="${p.id}">Preia pentru verificare CTC</button></div>`,
+            )
+            .join("") ||
+            '<div class="mut">Nicio solicitare prioritară în acest moment.</div>') +
+          "</div>";
       }
       function vCtc(c) {
         return listaStadiu(
