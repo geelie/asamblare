@@ -1709,7 +1709,7 @@
           (all
             .map(
               (p) =>
-                `<div class="card row"><div>${prodTxt(p)}<div class="mut"><span class="pill p-in_remediere">Prioritar</span> ${p.ctc_comanda ? "comanda " + esc(p.ctc_comanda) + " · " : ""}cerut de ${esc(nm(p.ctc_solicitat_de))} acum ${dur(Date.now() - new Date(p.ctc_solicitat_la))}${p.nr_remedieri ? ` · reverificare (remediat de ${p.nr_remedieri}×)` : ""}</div></div><button class="btn" data-a="pctc" data-id="${p.id}">Preia pentru verificare CTC</button></div>`,
+                `<div class="card row"><div>${prodTxt(p)}<div class="mut"><span class="pill p-in_remediere">Prioritar</span> Cerut de ${esc(p.ctc_solicitat_de_nume || nm(p.ctc_solicitat_de))} la ${new Date(p.ctc_solicitat_la).toLocaleString("ro-RO", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}${p.nr_remedieri ? ` · reverificare (remediat de ${p.nr_remedieri}×)` : ""}</div></div><button class="btn" data-a="pctc" data-id="${p.id}">Preia pentru verificare CTC</button></div>`,
             )
             .join("") ||
             '<div class="mut">Nicio solicitare prioritară în acest moment.</div>') +
