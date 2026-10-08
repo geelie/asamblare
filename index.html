@@ -479,6 +479,79 @@
       .ist-lb {
         z-index: 60;
       }
+      .ov > div.ist-m {
+        max-width: 1060px;
+        max-height: 94vh;
+        max-height: 94dvh;
+        padding: 16px 20px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .ist-m .tl div {
+        padding: 5px 0;
+        font-size: 13px;
+      }
+      .ist-m h4 {
+        margin: 12px 0 4px;
+      }
+      .ist-g {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+        grid-template-rows: minmax(0, 1fr);
+        gap: 22px;
+        align-items: stretch;
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: hidden;
+      }
+      .ist-g > div {
+        min-height: 0;
+        overflow-y: auto;
+        padding-right: 4px;
+      }
+      .ist-g.s {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      .ist-g details {
+        margin-top: 0 !important;
+      }
+      .ist-pp {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-top: 6px;
+      }
+      .ist-lb > div.ist-lbc {
+        max-width: min(96vw, 1100px);
+        max-height: 96vh;
+        max-height: 96dvh;
+        padding: 14px;
+      }
+      .ist-lbc img {
+        max-width: 100%;
+        max-height: calc(100vh - 190px);
+        max-height: calc(100dvh - 190px);
+        border-radius: 10px;
+        object-fit: contain;
+      }
+      @media (max-width: 860px) {
+        .ist-g,
+        .ist-pp {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .ov > div.ist-m {
+          display: block;
+          overflow: auto;
+        }
+        .ist-g {
+          display: block;
+          overflow: visible;
+        }
+        .ist-g > div {
+          overflow: visible;
+        }
+      }
       .ph {
         display: flex;
         flex-wrap: wrap;
@@ -2467,8 +2540,8 @@
  <div style="font-size:13px;margin:4px 0">${esc(n.descriere || "—")}</div>
  <div class="mut" style="font-size:12px">Constatată la ${esc(ET[et] || "—")}${e ? " · " + esc(nm(e.user_id)) : ""} · ${dt(n.created_at)}</div>
  ${rem ? `<div class="mut" style="font-size:12px">Remediată${n.remediata_de ? " de " + esc(nm(n.remediata_de)) : ""}${n.remediata_la ? " · " + dt(n.remediata_la) : ""}${n.nota_remediere ? " — " + esc(n.nota_remediere) : ""}</div>` : ""}
- <div class="mut" style="font-size:12px;margin-top:6px">Înainte</div><div class="ph">${inainte}</div>
- <div class="mut" style="font-size:12px">După</div><div class="ph">${dupa}</div></div>`;
+ <div class="ist-pp"><div><div class="mut" style="font-size:12px">Înainte</div><div class="ph">${inainte}</div></div>
+ <div><div class="mut" style="font-size:12px">După</div><div class="ph">${dupa}</div></div></div></div>`;
           })
           .join("");
         return {
@@ -2520,7 +2593,7 @@
           document.body.appendChild(o);
           document.addEventListener("keydown", istKey);
         }
-        o.innerHTML = `<div style="text-align:center"><img src="${u}" alt="" style="max-width:100%;max-height:62vh;border-radius:10px"><p class="mut" style="margin:8px 0">${esc(it.cap)}</p><div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px"><button class="btn gh sm" data-a="istnav" data-d="-1">‹</button><span class="mut">${i + 1} / ${n}</span><button class="btn gh sm" data-a="istnav" data-d="1">›</button><button class="btn sm" data-a="istdl">Descarcă</button><button class="btn gh sm" data-a="istlbx">Închide</button></div></div>`;
+        o.innerHTML = `<div class="ist-lbc" style="text-align:center"><img src="${u}" alt=""><p class="mut" style="margin:8px 0">${esc(it.cap)}</p><div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px"><button class="btn gh sm" data-a="istnav" data-d="-1">‹</button><span class="mut">${i + 1} / ${n}</span><button class="btn gh sm" data-a="istnav" data-d="1">›</button><button class="btn sm" data-a="istdl">Descarcă</button><button class="btn gh sm" data-a="istlbx">Închide</button></div></div>`;
       }
       async function istDl(i) {
         const it = IST.items[i],
@@ -2577,9 +2650,9 @@
                 : "În Depozit central";
         const o = document.createElement("div");
         o.className = "ov";
-        o.innerHTML = `<div><div class="row"><h3 style="margin:0">Istoric produs</h3><div><button class="btn gh sm" data-a="pdf" data-id="${id}">Fișă PDF</button> <button class="btn gh sm" data-a="close">Închide</button></div></div><p class="mut">Situație: <b>${esc(sit)}</b>${nrx.c ? ` · 📷 ${nrx.c} poze` : ""}</p>
- <div class="tl">${(ev.data || []).map((x) => `<div>${dt(x.created_at)} · <b>${esc(EV[x.tip] || x.tip)}</b> · ${esc(nm(x.user_id))}${x.detalii ? ` <span class="mut">(${esc(x.detalii)})</span>` : ""}</div>`).join("") || "<div>Fără evenimente.</div>"}</div>
- <h4>Durate etape</h4><div class="tl">${(et.data || []).map((x) => `<div>${x.tip} · ${esc(nm(x.user_id))} · ${x.ended_at ? dur(x.durata_sec * 1e3) + " (" + (x.rezultat || "") + ")" : "în curs"}</div>`).join("")}</div>${nrx.h}</div>`;
+        o.innerHTML = `<div class="ist-m"><div class="row"><h3 style="margin:0">Istoric produs</h3><div><button class="btn gh sm" data-a="pdf" data-id="${id}">Fișă PDF</button> <button class="btn gh sm" data-a="close">Închide</button></div></div><p class="mut">Situație: <b>${esc(sit)}</b>${nrx.c ? ` · 📷 ${nrx.c} poze` : ""}</p>
+ <div class="ist-g${nrx.h ? "" : " s"}"><div><div class="tl">${(ev.data || []).map((x) => `<div>${dt(x.created_at)} · <b>${esc(EV[x.tip] || x.tip)}</b> · ${esc(nm(x.user_id))}${x.detalii ? ` <span class="mut">(${esc(x.detalii)})</span>` : ""}</div>`).join("") || "<div>Fără evenimente.</div>"}</div>
+ <h4>Durate etape</h4><div class="tl">${(et.data || []).map((x) => `<div>${x.tip} · ${esc(nm(x.user_id))} · ${x.ended_at ? dur(x.durata_sec * 1e3) + " (" + (x.rezultat || "") + ")" : "în curs"}</div>`).join("")}</div></div>${nrx.h ? `<div>${nrx.h}</div>` : ""}</div></div>`;
         document.body.appendChild(o);
         istInit(o);
       }
