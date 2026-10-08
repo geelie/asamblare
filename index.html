@@ -447,6 +447,38 @@
         border: 1px solid #fecaca;
         border-radius: 12px;
       }
+      .ist-nr {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px;
+        margin: 8px 0;
+      }
+      .ist-nr .h {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        font-weight: 600;
+        font-size: 14px;
+      }
+      .ist-b {
+        font-size: 11px;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 99px;
+        white-space: nowrap;
+        height: fit-content;
+      }
+      .ist-b.o {
+        background: #fee2e2;
+        color: #b91c1c;
+      }
+      .ist-b.r {
+        background: #dcfce7;
+        color: #15803d;
+      }
+      .ist-lb {
+        z-index: 60;
+      }
       .ph {
         display: flex;
         flex-wrap: wrap;
@@ -1541,6 +1573,10 @@
           toast(`Criterii copiate la modelul „${noul}".`);
           go("checklist");
         },
+        istlb: (d) => istLb(d.i),
+        istnav: (d) => istLb(IST.i + Number(d.d)),
+        istdl: () => istDl(IST.i),
+        istlbx: () => istLbX(),
         close: () => document.querySelector(".ov")?.remove(),
         opendate: (d) => {
           const el = document.getElementById(d.t);
@@ -2384,8 +2420,128 @@
         URL.revokeObjectURL(url);
       }
 
+      /* ---------- POZE ÎN ISTORIC PRODUS ---------- */
+      const IST = { items: [], url: {}, signed: false, i: 0 };
+      function istNereguli(ner, etape, vin) {
+        IST.items = [];
+        IST.url = {};
+        IST.signed = false;
+        IST.i = 0;
+        if (!ner.length) return { h: "", c: 0 };
+        const eMap = new Map(etape.map((e) => [e.id, e])),
+          ET = { asamblare: "Asamblare", remediere: "Remediere", ctc: "CTC" },
+          slug = (x) => String(x || "").replace(/[^A-Za-z0-9_-]+/g, "");
+        let total = 0;
+        const cards = ner
+          .map((n, k) => {
+            const e = eMap.get(n.etapa_id),
+              et = e ? e.tip : "",
+              rem = n.status === "remediata",
+              poze = (n.asm_poze || [])
+                .slice()
+                .sort((a, b) =>
+                  String(a.storage_path).localeCompare(String(b.storage_path)),
+                ),
+              titlu = n.criteriu_text || "Neregulă " + (k + 1),
+              th = (tip) => {
+                const lst = poze.filter((p) => p.tip === tip);
+                if (!lst.length) return '<span class="mut">—</span>';
+                return lst
+                  .map((p, j) => {
+                    const idx = IST.items.length,
+                      ts = (p.storage_path.match(/(\d{10,})\.jpg$/) || [])[1],
+                      stg = tip === "dupa" ? "Remediere" : ET[et] || "—";
+                    IST.items.push({
+                      path: p.storage_path,
+                      cap: `Neregula ${k + 1}: ${titlu} · ${tip === "dupa" ? "După" : "Înainte"} · ${stg}${ts ? " · " + dt(Number(ts)) : ""}`,
+                      name: `${slug(vin)}_${slug(tip === "dupa" ? "remediere" : et || "etapa")}_neregula${k + 1}_${tip}_${j + 1}.jpg`,
+                    });
+                    total++;
+                    return `<img data-p="${esc(p.storage_path)}" data-a="istlb" data-i="${idx}" loading="lazy" alt="">`;
+                  })
+                  .join("");
+              };
+            const inainte = th("inainte"),
+              dupa = th("dupa");
+            return `<div class="ist-nr"><div class="h"><span>${esc(titlu)}</span><span class="ist-b ${rem ? "r" : "o"}">${rem ? "REMEDIATĂ" : "DESCHISĂ"}</span></div>
+ <div style="font-size:13px;margin:4px 0">${esc(n.descriere || "—")}</div>
+ <div class="mut" style="font-size:12px">Constatată la ${esc(ET[et] || "—")}${e ? " · " + esc(nm(e.user_id)) : ""} · ${dt(n.created_at)}</div>
+ ${rem ? `<div class="mut" style="font-size:12px">Remediată${n.remediata_de ? " de " + esc(nm(n.remediata_de)) : ""}${n.remediata_la ? " · " + dt(n.remediata_la) : ""}${n.nota_remediere ? " — " + esc(n.nota_remediere) : ""}</div>` : ""}
+ <div class="mut" style="font-size:12px;margin-top:6px">Înainte</div><div class="ph">${inainte}</div>
+ <div class="mut" style="font-size:12px">După</div><div class="ph">${dupa}</div></div>`;
+          })
+          .join("");
+        return {
+          c: total,
+          h: `<details id="ist-nr" style="margin-top:14px"><summary style="cursor:pointer;font-weight:700">📷 Nereguli și poze (${ner.length} · ${total} poze)</summary>${cards}</details>`,
+        };
+      }
+      function istInit(o) {
+        const d = o.querySelector("#ist-nr");
+        if (!d) return;
+        d.addEventListener("toggle", async () => {
+          if (!d.open || IST.signed || !IST.items.length) return;
+          IST.signed = true;
+          const { data, error } = await sb.storage.from(B).createSignedUrls(
+            IST.items.map((x) => x.path),
+            3600,
+          );
+          if (error) {
+            IST.signed = false;
+            return toast(error.message, 1);
+          }
+          (data || []).forEach((u) => (IST.url[u.path] = u.signedUrl));
+          d.querySelectorAll("img[data-p]").forEach((im) => {
+            const u = IST.url[im.dataset.p];
+            if (u) im.src = u;
+          });
+        });
+      }
+      function istKey(e) {
+        if (e.key === "Escape") istLbX();
+        else if (e.key === "ArrowLeft") istLb(IST.i - 1);
+        else if (e.key === "ArrowRight") istLb(IST.i + 1);
+      }
+      function istLbX() {
+        document.querySelector(".ist-lb")?.remove();
+        document.removeEventListener("keydown", istKey);
+      }
+      function istLb(i) {
+        const n = IST.items.length;
+        if (!n) return;
+        i = ((Number(i) % n) + n) % n;
+        IST.i = i;
+        const it = IST.items[i],
+          u = IST.url[it.path] || "";
+        let o = document.querySelector(".ist-lb");
+        if (!o) {
+          o = document.createElement("div");
+          o.className = "ov ist-lb";
+          document.body.appendChild(o);
+          document.addEventListener("keydown", istKey);
+        }
+        o.innerHTML = `<div style="text-align:center"><img src="${u}" alt="" style="max-width:100%;max-height:62vh;border-radius:10px"><p class="mut" style="margin:8px 0">${esc(it.cap)}</p><div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px"><button class="btn gh sm" data-a="istnav" data-d="-1">‹</button><span class="mut">${i + 1} / ${n}</span><button class="btn gh sm" data-a="istnav" data-d="1">›</button><button class="btn sm" data-a="istdl">Descarcă</button><button class="btn gh sm" data-a="istlbx">Închide</button></div></div>`;
+      }
+      async function istDl(i) {
+        const it = IST.items[i],
+          u = it && IST.url[it.path];
+        if (!u) return;
+        try {
+          const b = await (await fetch(u)).blob(),
+            url = URL.createObjectURL(b),
+            a = document.createElement("a");
+          a.href = url;
+          a.download = it.name;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 2000);
+        } catch (e) {
+          toast("Descărcarea a eșuat.", 1);
+        }
+      }
       async function ist(id) {
-        const [ev, et, lg] = await Promise.all([
+        const [ev, et, lg, nr, pv] = await Promise.all([
           sb
             .from("asm_evenimente")
             .select("*")
@@ -2397,21 +2553,35 @@
             .eq("asm_produs_id", id)
             .order("started_at"),
           sb.rpc("asm_logistic", { p_asm: id }),
+          sb
+            .from("asm_nereguli")
+            .select("*,asm_poze(*)")
+            .eq("asm_produs_id", id)
+            .order("created_at"),
+          sb.from("asm_produse").select("vin").eq("id", id).single(),
         ]);
+        const nrx = istNereguli(
+          nr.data || [],
+          et.data || [],
+          (pv.data && pv.data.vin) || "produs",
+        );
         const l = (lg.data || [])[0],
           sit = !l
             ? "În Depozit central / în flux"
             : l.data_vanzare
               ? "Vândut"
               : l.status_linie === "trimis"
-                ? "Expediat către " + (l.magazin || "—")
+                ? "Expediat către " +
+                  (l.magazin || "—") +
+                  (l.filiala ? " · Filiala " + l.filiala : "")
                 : "În Depozit central";
         const o = document.createElement("div");
         o.className = "ov";
-        o.innerHTML = `<div><div class="row"><h3 style="margin:0">Istoric produs</h3><div><button class="btn gh sm" data-a="pdf" data-id="${id}">Fișă PDF</button> <button class="btn gh sm" data-a="close">Închide</button></div></div><p class="mut">Situație: <b>${esc(sit)}</b></p>
+        o.innerHTML = `<div><div class="row"><h3 style="margin:0">Istoric produs</h3><div><button class="btn gh sm" data-a="pdf" data-id="${id}">Fișă PDF</button> <button class="btn gh sm" data-a="close">Închide</button></div></div><p class="mut">Situație: <b>${esc(sit)}</b>${nrx.c ? ` · 📷 ${nrx.c} poze` : ""}</p>
  <div class="tl">${(ev.data || []).map((x) => `<div>${dt(x.created_at)} · <b>${esc(EV[x.tip] || x.tip)}</b> · ${esc(nm(x.user_id))}${x.detalii ? ` <span class="mut">(${esc(x.detalii)})</span>` : ""}</div>`).join("") || "<div>Fără evenimente.</div>"}</div>
- <h4>Durate etape</h4><div class="tl">${(et.data || []).map((x) => `<div>${x.tip} · ${esc(nm(x.user_id))} · ${x.ended_at ? dur(x.durata_sec * 1e3) + " (" + (x.rezultat || "") + ")" : "în curs"}</div>`).join("")}</div></div>`;
+ <h4>Durate etape</h4><div class="tl">${(et.data || []).map((x) => `<div>${x.tip} · ${esc(nm(x.user_id))} · ${x.ended_at ? dur(x.durata_sec * 1e3) + " (" + (x.rezultat || "") + ")" : "în curs"}</div>`).join("")}</div>${nrx.h}</div>`;
         document.body.appendChild(o);
+        istInit(o);
       }
       async function fetchImgDataUrl(url) {
         try {
