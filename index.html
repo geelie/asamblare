@@ -2555,10 +2555,12 @@
         d.addEventListener("toggle", async () => {
           if (!d.open || IST.signed || !IST.items.length) return;
           IST.signed = true;
-          const { data, error } = await sb.storage.from(B).createSignedUrls(
-            IST.items.map((x) => x.path),
-            3600,
-          );
+          const { data, error } = await sb.storage
+            .from(B)
+            .createSignedUrls(
+              IST.items.map((x) => x.path),
+              3600,
+            );
           if (error) {
             IST.signed = false;
             return toast(error.message, 1);
@@ -2582,7 +2584,7 @@
       function istLb(i) {
         const n = IST.items.length;
         if (!n) return;
-        i = ((Number(i) % n) + n) % n;
+        i = (((Number(i) % n) + n) % n);
         IST.i = i;
         const it = IST.items[i],
           u = IST.url[it.path] || "";
@@ -2646,7 +2648,7 @@
               : l.status_linie === "trimis"
                 ? "Expediat către " +
                   (l.magazin || "—") +
-                  (l.filiala ? " · Filiala " + l.filiala : "")
+                  (l.filiala ? " · " + l.filiala : "")
                 : "În Depozit central";
         const o = document.createElement("div");
         o.className = "ov";
@@ -2882,7 +2884,9 @@
             : l.data_vanzare
               ? "Vândut"
               : l.status_linie === "trimis"
-                ? "Expediat către " + (l.magazin || "—")
+                ? "Expediat către " +
+                  (l.magazin || "—") +
+                  (l.filiala ? " - " + l.filiala : "")
                 : "În Depozit central";
         const kvRows = [
           [
