@@ -1,0 +1,3550 @@
+<!doctype html>
+<html lang="ro">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#161b22" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Asamblare</title>
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+
+    <!-- Conexiuni timpurii către CDN și fonturi -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="preload" href="logo.webp" as="image" type="image/webp" />
+
+    <!-- Necesar la pornire. jsPDF și ExcelJS se încarcă doar la export. -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+      /* Design tokens preluate din aplicația de distribuții */
+      :root {
+        --graphite: #161b22;
+        --graphite-2: #20272f;
+        --teal: #0fbf9f;
+        --teal-dark: #0b9b82;
+        --amber: #f0a93b;
+        --bg: #f5f7f8;
+        --line: #e3e7e9;
+        --card: #fff;
+        --ink: #1e293b;
+        --mut: #64748b;
+        --gr: #161b22;
+        --tb: #d9f5ee;
+        --ok: #0b8a5f;
+        --okb: #eaf7f0;
+        --no: #b91c1c;
+        --nob: #fee2e2;
+        --wa: #b4650b;
+        --wab: #fff1de;
+        --bl: #1d6fa5;
+        --blb: #e6f4ff;
+        --sl: #64748b;
+        --slb: #f1f2f4;
+        --shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+        --r: 16px;
+      }
+      * {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+      }
+      html {
+        -webkit-text-size-adjust: 100%;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font:
+          14px/1.45 Inter,
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+        min-height: 100vh;
+        min-height: 100dvh;
+      }
+      h1,
+      h2,
+      h3,
+      h4,
+      .brand {
+        font-family: Manrope, system-ui, sans-serif;
+        font-weight: 800;
+      }
+      h3 {
+        font-size: 16px;
+      }
+      h4 {
+        font-size: 14px;
+      }
+      button {
+        font-family: inherit;
+        touch-action: manipulation;
+      }
+      a {
+        color: var(--teal-dark);
+      }
+      /* antet + navigare */
+      header {
+        background: var(--graphite);
+        color: #fff;
+        padding: 12px 16px;
+        padding-top: calc(12px + env(safe-area-inset-top, 0px));
+        padding-left: calc(16px + env(safe-area-inset-left, 0px));
+        padding-right: calc(16px + env(safe-area-inset-right, 0px));
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        justify-content: space-between;
+      }
+      header b {
+        font-family: Manrope, system-ui, sans-serif;
+        font-weight: 800;
+        font-size: 17px;
+      }
+      header small {
+        color: #94a3b8;
+      }
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+      }
+      nav {
+        display: flex;
+        gap: 2px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        background: #fff;
+        border-bottom: 1px solid var(--line);
+        padding: 0 max(16px, calc((100% - 980px) / 2 + 16px));
+      }
+      nav::-webkit-scrollbar {
+        display: none;
+      }
+      nav button {
+        flex: 0 0 auto;
+        border: 0;
+        border-bottom: 3px solid transparent;
+        border-radius: 0;
+        background: transparent;
+        color: #6b7280;
+        padding: 14px 16px;
+        min-height: 48px;
+        font:
+          600 14px Inter,
+          system-ui,
+          sans-serif;
+        white-space: nowrap;
+        cursor: pointer;
+      }
+      nav button:hover {
+        color: #111827;
+      }
+      nav button.on {
+        background: transparent;
+        border-color: var(--teal);
+        color: #111827;
+      }
+      main {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 16px 16px calc(40px + env(safe-area-inset-bottom, 0px));
+      }
+      /* carduri */
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: var(--r);
+        padding: 16px;
+        margin-bottom: 12px;
+        box-shadow: var(--shadow);
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .crit-row {
+        display: flex;
+        flex-wrap: nowrap;
+        align-items: center;
+        gap: 5px;
+        margin-bottom: 3px;
+      }
+      .crit-row input[type="number"] {
+        width: 38px;
+        flex: 0 0 auto;
+        padding: 3px 5px;
+        min-height: 28px;
+        font-size: 12.5px;
+        text-align: center;
+      }
+      .crit-row input[data-f="model"] {
+        width: 78px;
+        flex: 0 0 auto;
+        padding: 3px 6px;
+        min-height: 28px;
+        font-size: 12.5px;
+      }
+      .crit-row input[data-f="text"] {
+        flex: 1 1 auto;
+        min-width: 50px;
+        padding: 3px 8px;
+        min-height: 28px;
+        font-size: 12.5px;
+      }
+      .crit-row label {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        white-space: nowrap;
+        font-size: 11.5px;
+        color: var(--mut);
+        flex: 0 0 auto;
+      }
+      .crit-row label input[type="checkbox"] {
+        width: 15px !important;
+        height: 15px;
+      }
+      .crit-row button.btn {
+        padding: 3px 7px;
+        min-height: 28px;
+        font-size: 12px;
+        flex: 0 0 auto;
+      }
+      .add-row {
+        display: flex;
+        flex-wrap: nowrap;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 10px;
+      }
+      .add-row input {
+        padding: 6px 10px;
+        min-height: 32px;
+        font-size: 13px;
+      }
+      .add-row input#nm-asamblare {
+        width: 110px;
+        flex: 0 0 auto;
+      }
+      .add-row input#ns-asamblare,
+      .add-row input#ns-ctc {
+        flex: 1 1 auto;
+        min-width: 60px;
+      }
+      .add-row button.btn {
+        padding: 6px 12px;
+        min-height: 32px;
+        font-size: 13px;
+        flex: 0 0 auto;
+      }
+      .model-toggle {
+        border: 0;
+        background: transparent;
+        color: var(--mut);
+        cursor: pointer;
+        font:
+          800 15px Manrope,
+          system-ui,
+          sans-serif;
+        padding: 0 6px 0 0;
+        line-height: 1;
+      }
+      .model-toggle:hover {
+        color: var(--ink);
+      }
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      .mut {
+        color: var(--mut);
+        font-size: 13px;
+      }
+      /* câmpuri */
+      input,
+      textarea,
+      select {
+        border: 1px solid #d5dbe0;
+        border-radius: 10px;
+        padding: 10px 12px;
+        font: inherit;
+        font-size: 14px;
+        background: #fff;
+        color: var(--ink);
+        width: 100%;
+        min-height: 42px;
+      }
+      input:focus,
+      textarea:focus,
+      select:focus {
+        outline: none;
+        border-color: transparent;
+        box-shadow: 0 0 0 2px var(--teal);
+      }
+      textarea {
+        min-height: 64px;
+        resize: vertical;
+      }
+      input::placeholder,
+      textarea::placeholder {
+        color: #9ca3af;
+      }
+      input[type="checkbox"] {
+        width: 20px !important;
+        height: 20px;
+        min-height: 0;
+        accent-color: var(--teal-dark);
+        vertical-align: middle;
+      }
+      /* butoane */
+      .btn {
+        border: 0;
+        border-radius: 10px;
+        padding: 11px 18px;
+        min-height: 44px;
+        font:
+          700 14px Inter,
+          system-ui,
+          sans-serif;
+        cursor: pointer;
+        background: var(--teal);
+        color: #0a1210;
+        transition: background-color 0.12s ease;
+      }
+      .btn:hover {
+        background: var(--teal-dark);
+      }
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .btn.red {
+        background: var(--no);
+        color: #fff;
+      }
+      .btn.red:hover {
+        background: #991b1b;
+      }
+      .btn.gh {
+        background: #fff;
+        color: var(--ink);
+        border: 1px solid #d5dbe0;
+      }
+      .btn.gh:hover {
+        background: #f8fafb;
+      }
+      .btn.sm {
+        padding: 6px 12px;
+        min-height: 36px;
+        font-size: 13px;
+      }
+      /* etichete stadiu */
+      .pill {
+        display: inline-block;
+        padding: 2px 9px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+      }
+      .p-in_asamblare {
+        background: var(--wab);
+        color: var(--wa);
+      }
+      .p-in_remediere {
+        background: var(--nob);
+        color: var(--no);
+      }
+      .p-asteapta_ctc {
+        background: var(--slb);
+        color: var(--sl);
+      }
+      .p-in_ctc {
+        background: var(--blb);
+        color: var(--bl);
+      }
+      .p-ctc_avizat {
+        background: var(--okb);
+        color: var(--ok);
+      }
+      /* fișă */
+      .timer {
+        font:
+          700 24px Manrope,
+          ui-monospace,
+          monospace;
+        font-variant-numeric: tabular-nums;
+        color: var(--teal-dark);
+      }
+      .crit {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 12px 14px;
+        margin-bottom: 10px;
+        background: var(--card);
+        box-shadow: var(--shadow);
+      }
+      .crit.nok {
+        border-color: var(--no);
+      }
+      .crit.ok {
+        border-color: var(--ok);
+      }
+      .tg {
+        display: flex;
+        gap: 8px;
+      }
+      .tg button {
+        min-width: 72px;
+        min-height: 46px;
+        padding: 10px 16px;
+        border-radius: 10px;
+        border: 1px solid #d5dbe0;
+        background: #fff;
+        color: var(--ink);
+        font:
+          700 14px Inter,
+          system-ui,
+          sans-serif;
+        cursor: pointer;
+      }
+      .tg .ok {
+        background: var(--okb);
+        color: var(--ok);
+        border-color: var(--ok);
+      }
+      .tg .no {
+        background: var(--nob);
+        color: var(--no);
+        border-color: var(--no);
+      }
+      .def {
+        margin-top: 10px;
+        padding: 12px;
+        background: #fff5f5;
+        border: 1px solid #fecaca;
+        border-radius: 12px;
+      }
+      .ist-nr {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px;
+        margin: 8px 0;
+      }
+      .ist-nr .h {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        font-weight: 600;
+        font-size: 14px;
+      }
+      .ist-b {
+        font-size: 11px;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 99px;
+        white-space: nowrap;
+        height: fit-content;
+      }
+      .ist-b.o {
+        background: #fee2e2;
+        color: #b91c1c;
+      }
+      .ist-b.r {
+        background: #dcfce7;
+        color: #15803d;
+      }
+      .ist-lb {
+        z-index: 60;
+      }
+      .ov > div.ist-m {
+        max-width: 1060px;
+        max-height: 94vh;
+        max-height: 94dvh;
+        padding: 16px 20px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .ist-m .tl div {
+        padding: 5px 0;
+        font-size: 13px;
+      }
+      .ist-m h4 {
+        margin: 12px 0 4px;
+      }
+      .ist-g {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+        grid-template-rows: minmax(0, 1fr);
+        gap: 22px;
+        align-items: stretch;
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: hidden;
+      }
+      .ist-g > div {
+        min-height: 0;
+        overflow-y: auto;
+        padding-right: 4px;
+      }
+      .ist-g.s {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      .ist-g details {
+        margin-top: 0 !important;
+      }
+      .ist-pp {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-top: 6px;
+      }
+      .ist-lb > div.ist-lbc {
+        max-width: min(96vw, 1100px);
+        max-height: 96vh;
+        max-height: 96dvh;
+        padding: 14px;
+      }
+      .ist-lbc img {
+        max-width: 100%;
+        max-height: calc(100vh - 190px);
+        max-height: calc(100dvh - 190px);
+        border-radius: 10px;
+        object-fit: contain;
+      }
+      @media (max-width: 860px) {
+        .ist-g,
+        .ist-pp {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .ov > div.ist-m {
+          display: block;
+          overflow: auto;
+        }
+        .ist-g {
+          display: block;
+          overflow: visible;
+        }
+        .ist-g > div {
+          overflow: visible;
+        }
+      }
+      .ph {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 8px 0;
+      }
+      .ph img {
+        width: 72px;
+        height: 72px;
+        object-fit: cover;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        cursor: pointer;
+      }
+      .lbl {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 44px;
+        border: 1px dashed #94a3b8;
+        border-radius: 10px;
+        padding: 8px 14px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        background: #fff;
+        color: var(--ink);
+      }
+      .lbl:hover {
+        border-color: var(--teal-dark);
+        background: #eefaf7;
+      }
+      .lbl input {
+        display: none;
+      }
+      /* dashboard */
+      .kpis {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+      .kpi {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: var(--r);
+        padding: 12px;
+        text-align: left;
+        font: inherit;
+        color: var(--ink);
+        cursor: pointer;
+        box-shadow: var(--shadow);
+      }
+      .kpi:hover {
+        border-color: var(--teal);
+      }
+      .kpi.on {
+        border-color: var(--teal);
+        box-shadow: 0 0 0 2px var(--tb);
+      }
+      .kpi b {
+        display: block;
+        font:
+          800 26px Manrope,
+          system-ui,
+          sans-serif;
+        margin-top: 4px;
+      }
+      .al {
+        background: #fef3e2;
+        color: #92400e;
+        border: 1px solid #fde8c8;
+        border-radius: 12px;
+        padding: 10px 14px;
+        margin-bottom: 12px;
+      }
+      .wrap {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .list-scroll {
+        max-height: 55vh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .list-scroll .card:last-child {
+        margin-bottom: 0;
+      }
+      table {
+        border-collapse: separate;
+        border-spacing: 0;
+        width: 100%;
+        min-width: 600px;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 4px 8px;
+        border-bottom: 1px solid #eef1f3;
+        font-size: 12.5px;
+        white-space: nowrap;
+      }
+      #tb .btn.sm {
+        padding: 4px 8px;
+        min-height: 28px;
+        font-size: 11.5px;
+      }
+      .list-scroll thead th {
+        position: sticky;
+        top: 0;
+        background: #fff;
+        z-index: 2;
+      }
+      .pg-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-top: 8px;
+        flex-wrap: wrap;
+      }
+      /* datepicker ZZ.LL.AAAA */
+      .dp {
+        position: relative;
+      }
+      .dp .dp-txt {
+        cursor: pointer;
+        background: #fff;
+        padding-right: 16px;
+      }
+      .dp .dp-native {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+        pointer-events: none;
+      }
+      /* filtre Statistici: padding vertical minim */
+      .sta-filters input,
+      .sta-filters select {
+        padding-top: 6px;
+        padding-bottom: 6px;
+        min-height: 34px;
+      }
+      /* tabel Statistici: fără scroll orizontal pe desktop, coloane compacte */
+      .tbl-sta th,
+      .tbl-sta td {
+        white-space: normal;
+        word-break: break-word;
+        padding: 3px 6px;
+      }
+      .tbl-sta {
+        min-width: 0;
+        width: 100%;
+      }
+      .tbl-sta .mono {
+        font-size: 11px;
+      }
+      /* pe mobil: revenire la nowrap + glisare orizontală (mai lizibil decât wrap pe litere) */
+      @media (max-width: 820px) {
+        .tbl-sta th,
+        .tbl-sta td {
+          white-space: nowrap;
+          word-break: normal;
+          padding: 4px 8px;
+        }
+        .tbl-sta {
+          min-width: 760px;
+          width: auto;
+        }
+        .tbl-sta .mono {
+          font-size: 12.5px;
+        }
+      }
+      th {
+        color: var(--mut);
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        background: #f8fafb;
+      }
+      tbody tr {
+        background: #fff;
+        transition: background-color 0.12s ease;
+      }
+      tbody tr:nth-child(2n) {
+        background: #fafbfc;
+      }
+      tbody tr:hover {
+        background: #eefaf7;
+      }
+      tbody tr:last-child td {
+        border-bottom: 0;
+      }
+      /* bara de jos a fișei */
+      .foot {
+        position: sticky;
+        bottom: 0;
+        z-index: 5;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 0;
+        padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+        background: linear-gradient(
+          to top,
+          var(--bg) 82%,
+          rgba(245, 247, 248, 0)
+        );
+      }
+      /* autentificare */
+      .auth {
+        max-width: 380px;
+        margin: 8vh auto;
+        padding: 0 16px;
+      }
+      .auth h2 {
+        font-size: 22px;
+        margin: 0 0 14px;
+      }
+      .auth .card {
+        border-radius: 20px;
+        padding: 22px;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+      }
+      .auth .card > * {
+        margin-bottom: 12px;
+      }
+      .auth .card > *:last-child {
+        margin-bottom: 0;
+      }
+      /* notificare + fereastră modală */
+      #toast {
+        position: fixed;
+        left: 50%;
+        bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+        transform: translateX(-50%);
+        background: var(--graphite);
+        color: #fff;
+        padding: 12px 18px;
+        border-radius: 12px;
+        z-index: 99;
+        display: none;
+        max-width: 92%;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.25);
+      }
+      #toast.e {
+        background: var(--no);
+      }
+      .ov {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 20, 25, 0.55);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        z-index: 50;
+        animation: fadeIn 0.25s ease;
+      }
+      .ov > div {
+        background: #fff;
+        border-radius: 20px;
+        padding: 20px;
+        max-width: 560px;
+        width: 100%;
+        max-height: 88vh;
+        max-height: 88dvh;
+        overflow: auto;
+        box-shadow: 0 20px 50px rgba(15, 23, 42, 0.3);
+      }
+      .tl div {
+        padding: 8px 0;
+        border-bottom: 1px solid #eef1f3;
+        font-size: 14px;
+      }
+      @keyframes fadeIn {
+        0% {
+          opacity: 0;
+          transform: translateY(4px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      header .btn.gh {
+        background: transparent;
+      }
+      header .btn.gh:hover {
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      /* ---- tablete și telefoane ---- */
+      @media (pointer: coarse) {
+        input,
+        textarea,
+        select {
+          font-size: 16px;
+          min-height: 46px;
+        }
+        .btn {
+          min-height: 48px;
+        }
+        .btn.sm {
+          min-height: 44px;
+        }
+        .lbl {
+          min-height: 48px;
+        }
+        .tg button {
+          min-height: 50px;
+          min-width: 80px;
+        }
+        nav button {
+          min-height: 52px;
+        }
+        th,
+        td {
+          padding: 10px 12px;
+        }
+      }
+      @media (max-width: 820px) {
+        main {
+          padding: 12px 12px calc(32px + env(safe-area-inset-bottom, 0px));
+        }
+        .card {
+          padding: 14px;
+        }
+        .ov {
+          padding: 0;
+          align-items: flex-end;
+        }
+        .ov > div {
+          max-width: none;
+          border-radius: 20px 20px 0 0;
+          max-height: 92vh;
+          max-height: 92dvh;
+        }
+      }
+      @media (max-width: 640px) {
+        .row[style*="nowrap"] {
+          flex-wrap: wrap !important;
+        }
+        .row[style*="nowrap"]
+          input:not([type="checkbox"]):not([type="number"]) {
+          flex: 1 1 100%;
+        }
+        .foot > * {
+          flex: 1 1 auto;
+        }
+        .foot .btn {
+          width: 100%;
+        }
+        .foot > div:first-child {
+          display: flex;
+          gap: 8px;
+        }
+        .foot > div:first-child .btn {
+          width: auto;
+          flex: 1;
+        }
+        .tg {
+          width: 100%;
+        }
+        .tg button {
+          flex: 1;
+        }
+        .crit .row {
+          align-items: stretch;
+        }
+        .ph img {
+          width: 64px;
+          height: 64px;
+        }
+        header b {
+          font-size: 16px;
+        }
+      }
+      /* Stiluri pentru logo */
+      .logo-header {
+        height: 72px; /* = înălțimea benzii închise; fără margini sus/jos/stânga */
+        width: auto;
+        display: block;
+        vertical-align: middle;
+        margin: 0 8px 0 0;
+      }
+      /* logo lipit de marginile benzii (sus, jos, stânga) */
+      header {
+        padding-top: env(safe-area-inset-top, 0px);
+        padding-bottom: 0;
+        padding-left: env(safe-area-inset-left, 0px);
+      }
+      header > div:first-child {
+        display: flex;
+        align-items: center;
+      }
+      /* rol (culoare diferită per rol) deasupra, nume alb mai gros dedesubt */
+      header {
+        --hf: 13px; /* aceeași mărime pentru rol/nume și textele butoanelor */
+        --hl: 168px; /* lungimea liniilor albe (stânga = dreapta pe desktop) */
+      }
+      header .who {
+        position: relative;
+        align-self: stretch;
+        min-width: var(--hl);
+        display: grid;
+        grid-template-rows: 1fr 1fr; /* rol = jumătatea de sus, nume = jumătatea de jos */
+        grid-template-columns: minmax(0, 1fr);
+        line-height: 1.2;
+      }
+      header .who::before {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 0;
+        width: var(--hl);
+        height: 1px;
+        background: linear-gradient(
+          to right,
+          #fff 0%,
+          #fff 70%,
+          rgba(255, 255, 255, 0) 100%
+        ); /* pornește lângă logo, se pierde spre dreapta */
+        pointer-events: none;
+      }
+      header .who .role,
+      header .who .uname {
+        display: flex;
+        align-items: center; /* centrat vertical în jumătatea lui */
+        font-size: var(--hf);
+      }
+      header .who .role {
+        font-weight: 700;
+        color: #94a3b8;
+      }
+      header .who .role-asm_operator {
+        color: #f0a93b;
+      }
+      header .who .role-asm_remediere {
+        color: #f87171;
+      }
+      header .who .role-asm_ctc {
+        color: #38bdf8;
+      }
+      header .who .role-asm_admin {
+        color: #2dd4bf;
+      }
+      header .who .role-superadmin {
+        color: #c084fc;
+      }
+      header .who .uname {
+        font-weight: 600;
+        color: #fff;
+      }
+      /* zona din dreapta a antetului: linie albă la mijloc, două butoane */
+      header .hdr-actions {
+        position: relative;
+        align-self: stretch;
+        min-height: 72px;
+        display: grid;
+        grid-template-rows: 1fr 1fr;
+        padding-left: 28px; /* linia se termină la ~jumătate din lungimea textului, în stânga lui */
+      }
+      header .hdr-actions::before {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: auto;
+        width: var(--hl);
+        right: calc(
+          -16px - env(safe-area-inset-right, 0px)
+        ); /* pornește din marginea dreaptă */
+        height: 1px;
+        background: linear-gradient(
+          to left,
+          #fff 0%,
+          #fff 70%,
+          rgba(255, 255, 255, 0) 100%
+        ); /* se pierde treptat spre stânga */
+        pointer-events: none;
+      }
+      header .hdr-actions > div {
+        display: flex;
+        align-items: center; /* buton centrat între linie și margine */
+      }
+      header .hdr-actions .btn {
+        width: 100%;
+        min-height: 32px;
+        padding: 5px 12px;
+        font-size: var(--hf);
+        white-space: nowrap;
+      }
+      /* telefoane: toate elementele antetului pe aceeași linie */
+      @media (max-width: 640px) {
+        header {
+          flex-wrap: nowrap;
+          gap: 8px;
+        }
+        header > div:first-child {
+          flex: 1 1 auto;
+          min-width: 0; /* permite micșorarea zonei rol/nume */
+        }
+        .logo-header {
+          flex: 0 0 auto;
+        }
+        header .who {
+          flex: 1 1 auto;
+          min-width: 0;
+        }
+        header .who::before {
+          width: min(
+            var(--hl),
+            calc(100% - 8px)
+          ); /* nu se unește cu linia din dreapta */
+        }
+        header .who .role,
+        header .who .uname {
+          display: block;
+          align-self: center;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis; /* text lung => "..." în loc de rând nou */
+        }
+        header .hdr-actions {
+          flex: 0 0 auto;
+        }
+        header .hdr-actions::before {
+          left: 0;
+          width: auto; /* pe mobil linia din dreapta merge de la butoane la margine */
+        }
+      }
+      @media (max-width: 400px) {
+        header {
+          --hf: 12px;
+        }
+        header .hdr-actions .btn {
+          padding: 5px 8px;
+        }
+      }
+
+      .logo-auth {
+        width: 300px; /* mai mic decât înainte (360px) */
+        max-width: 100%; /* nu depășește lățimea ferestrei de login */
+        height: auto;
+        display: block;
+        margin: 0 auto 14px auto; /* centrat pe aceeași axă cu fereastra de login */
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <div id="toast"></div>
+    <script>
+      const SB_URL = "https://ksjvpuyiuplaonpbwrfn.supabase.co",
+        SB_KEY =
+          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtzanZwdXlpdXBsYW9ucGJ3cmZuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxMDgyNDEsImV4cCI6MjA5OTY4NDI0MX0._Wp1Ty4KBFJORjmI41S5eFfVulZJyhMr0ODGykn49uM";
+      const sb = supabase.createClient(SB_URL, SB_KEY),
+        B = "asamblare-foto";
+
+      /* Încărcare la cerere a bibliotecilor de export (nu la pornire) */
+      const _scripts = {};
+      function loadScript(src) {
+        if (!_scripts[src])
+          _scripts[src] = new Promise((res, rej) => {
+            const el = document.createElement("script");
+            el.src = src;
+            el.onload = res;
+            el.onerror = () => {
+              delete _scripts[src];
+              el.remove();
+              rej(new Error("Nu s-a putut încărca " + src));
+            };
+            document.head.appendChild(el);
+          });
+        return _scripts[src];
+      }
+      const loadExcelJS = () =>
+        window.ExcelJS
+          ? Promise.resolve()
+          : loadScript(
+              "https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js",
+            );
+      const loadJsPdf = () =>
+        window.jspdf && typeof FONT_REG !== "undefined"
+          ? Promise.resolve()
+          : Promise.all([
+              loadScript(
+                "https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js",
+              ),
+              loadScript("pdf-assets.js"),
+            ]);
+      const $ = (s, e = document) => e.querySelector(s),
+        esc = (s) =>
+          String(s ?? "").replace(
+            /[&<>"]/g,
+            (c) =>
+              ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c],
+          );
+      const ROL = {
+        asm_operator: "Asamblare",
+        asm_remediere: "Remediere",
+        asm_ctc: "CTC",
+        asm_admin: "Admin asamblare",
+        superadmin: "Super Admin",
+      };
+      const ADM = [
+        ["stadii", "Stadii produse"],
+        ["checklist", "Checklist"],
+        ["statistici", "Statistici"],
+        ["setari", "Setări"],
+      ];
+      const TABS = {
+        asm_operator: [
+          ["preia", "Preia produs"],
+          ["lucru", "În lucru"],
+        ],
+        asm_remediere: [
+          ["remediat", "De remediat"],
+          ["lucru", "În lucru"],
+        ],
+        asm_ctc: [
+          ["prioritare", "Prioritare"],
+          ["ctc", "De verificat"],
+          ["lucru", "În lucru"],
+        ],
+        asm_admin: ADM,
+        superadmin: ADM,
+      };
+      const ST = {
+        in_asamblare: "În asamblare",
+        in_remediere: "În remediere",
+        asteapta_ctc: "Așteaptă CTC",
+        in_ctc: "În CTC",
+        ctc_avizat: "Avizat CTC",
+      };
+      const EV = {
+        preluat_asamblare: "Preluat din Antedepozit",
+        asamblare_ok: "Asamblare finalizată OK",
+        trimis_remediere_din_asamblare: "Trimis la remediere (din asamblare)",
+        trimis_remediere_din_ctc: "Trimis la remediere (din CTC)",
+        preluat_remediere: "Remediere preluată",
+        remediere_ok: "Remediere finalizată",
+        preluat_ctc: "Verificare CTC începută",
+        ctc_avizat: "Aviz CTC acordat",
+        eliberat_de_admin: "Eliberat de admin",
+        aviz_revocat: "Aviz revocat",
+      };
+      let me = null,
+        tab = null,
+        S = {},
+        names = {},
+        F = null,
+        tmr = null,
+        rt = null,
+        recoverMode = false,
+        ultimulModel = "";
+      const modeleExpandate = new Set();
+      let ctcExpandat = false;
+      const nm = (id) => names[id] || "—",
+        dt = (t) => (t ? new Date(t).toLocaleString("ro-RO") : "—");
+      const modelKey = (m) => {
+        const t = (m || "").trim().toUpperCase().replace(/\s+/g, " ");
+        return t || null;
+      };
+      function dur(ms) {
+        const m = Math.floor(ms / 6e4);
+        return m < 60
+          ? m + " min"
+          : m < 1440
+            ? Math.floor(m / 60) + " h " + (m % 60) + " min"
+            : Math.floor(m / 1440) +
+              " zile " +
+              Math.floor((m % 1440) / 60) +
+              " h";
+      }
+      function toast(m, e) {
+        const t = $("#toast");
+        t.textContent = m;
+        t.className = e ? "e" : "";
+        t.style.display = "block";
+        clearTimeout(t._t);
+        t._t = setTimeout(() => (t.style.display = "none"), 4000);
+      }
+      async function rpc(f, a) {
+        const { data, error } = await sb.rpc(f, a);
+        if (error) {
+          toast(error.message, 1);
+          throw error;
+        }
+        return data;
+      }
+
+      /* ---------- AUTH ---------- */
+      function renderSetPassword() {
+        clearInterval(tmr);
+        $("#app").innerHTML =
+          `<div class="auth"><img src="logo.webp" alt="Asamblare Logo" class="logo-auth"><div class="card">
+ <p class="mut">Alege o parolă nouă pentru cont.</p>
+ <input id="pw1" type="password" placeholder="Parolă nouă (minim 6 caractere)" autocomplete="new-password">
+ <input id="pw2" type="password" placeholder="Confirmă parola nouă" autocomplete="new-password">
+ <button class="btn" style="width:100%" id="go2">Salvează parola</button></div></div>`;
+        $("#go2").onclick = async () => {
+          const a = $("#pw1").value,
+            b = $("#pw2").value;
+          if (a.length < 6)
+            return toast("Parola trebuie să aibă minim 6 caractere.", 1);
+          if (a !== b) return toast("Parolele introduse nu coincid.", 1);
+          const btn = $("#go2");
+          btn.disabled = true;
+          btn.textContent = "Se salvează...";
+          const r = await sb.auth.updateUser({ password: a });
+          if (r.error) {
+            btn.disabled = false;
+            btn.textContent = "Salvează parola";
+            return toast(r.error.message, 1);
+          }
+          recoverMode = false;
+          await sb.auth.signOut();
+          authView("login");
+          toast("Parolă actualizată. Autentifică-te cu noua parolă.");
+        };
+      }
+      /* ---------- SCHIMBARE PAROLĂ (utilizator autentificat) ---------- */
+      function openChangePassword(trigger) {
+        if ($("#pwov")) return;
+        const o = document.createElement("div");
+        o.className = "ov";
+        o.id = "pwov";
+        o.innerHTML = `<div role="dialog" aria-modal="true" aria-labelledby="pwt" style="max-width:420px">
+ <h3 id="pwt" style="margin:0 0 4px">Schimbă parola</h3>
+ <p class="mut" style="margin:0 0 12px">Alege o parolă nouă pentru contul cu care ești autentificat.</p>
+ <input id="np1" type="password" placeholder="Parola nouă (minim 6 caractere)" autocomplete="new-password" style="margin-bottom:8px">
+ <input id="np2" type="password" placeholder="Confirmă parola nouă" autocomplete="new-password">
+ <label class="mut" style="display:flex;align-items:center;gap:8px;margin:10px 0 0;cursor:pointer"><input type="checkbox" id="npshow"> Arată parolele</label>
+ <div id="nperr" role="alert" style="color:var(--no);font-size:13px;min-height:20px;margin:8px 0"></div>
+ <div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap"><button class="btn gh" id="npx" type="button">Anulează</button><button class="btn" id="npgo" type="button">Schimbă parola</button></div></div>`;
+        document.body.appendChild(o);
+        const p1 = $("#np1", o),
+          p2 = $("#np2", o),
+          show = $("#npshow", o),
+          err = $("#nperr", o),
+          ok = $("#npgo", o),
+          cancel = $("#npx", o);
+        let busy = false;
+        const close = () => {
+          document.removeEventListener("keydown", onKey, true);
+          o.remove();
+          if (trigger && trigger.focus) trigger.focus();
+        };
+        const onKey = (e) => {
+          if (e.key === "Escape") {
+            e.preventDefault();
+            if (!busy) close();
+          } else if (e.key === "Tab") {
+            const f = [p1, p2, show, cancel, ok].filter((x) => !x.disabled),
+              i = f.indexOf(document.activeElement);
+            if (e.shiftKey && i <= 0) {
+              e.preventDefault();
+              f[f.length - 1].focus();
+            } else if (!e.shiftKey && (i === -1 || i === f.length - 1)) {
+              e.preventDefault();
+              f[0].focus();
+            }
+          }
+        };
+        document.addEventListener("keydown", onKey, true);
+        show.onchange = () => {
+          p1.type = p2.type = show.checked ? "text" : "password";
+        };
+        const fail = (m, el) => {
+          err.textContent = m;
+          if (el) el.focus();
+        };
+        const submit = async () => {
+          if (busy) return;
+          const a = p1.value,
+            b = p2.value;
+          err.textContent = "";
+          if (a.length < 6)
+            return fail("Parola trebuie să aibă minim 6 caractere.", p1);
+          if (a !== b) return fail("Parolele introduse nu coincid.", p2);
+          busy = true;
+          ok.disabled = cancel.disabled = true;
+          ok.textContent = "Se salvează...";
+          let r;
+          try {
+            r = await sb.auth.updateUser({ password: a });
+          } catch (e) {
+            r = { error: e };
+          }
+          busy = false;
+          if (r.error) {
+            ok.disabled = cancel.disabled = false;
+            ok.textContent = "Schimbă parola";
+            const m = String(r.error.message || "").toLowerCase();
+            return fail(
+              m.includes("different from the old")
+                ? "Parola nouă trebuie să fie diferită de cea actuală."
+                : m.includes("reauthenticat") || m.includes("recent")
+                  ? "Din motive de securitate, deconectează-te, autentifică-te din nou și repetă operația."
+                  : r.error.message || "Parola nu a putut fi schimbată.",
+              p1,
+            );
+          }
+          close();
+          toast("Parola a fost schimbată.");
+        };
+        ok.onclick = submit;
+        cancel.onclick = close;
+        [p1, p2].forEach(
+          (i) =>
+            (i.onkeydown = (e) => {
+              if (e.key === "Enter") submit();
+            }),
+        );
+        p1.focus();
+      }
+      function authView(mode = "login") {
+        clearInterval(tmr);
+        $("#app").innerHTML =
+          `<div class="auth"><img src="logo.webp" alt="Asamblare Logo" class="logo-auth"><div class="card">
+ <input id="em" type="email" placeholder="Email" autocomplete="username">
+ ${mode === "forgot" ? "" : '<input id="pw" type="password" placeholder="Parolă (minim 6 caractere)" autocomplete="current-password">'}
+ <button class="btn" style="width:100%" id="go">${{ login: "Autentificare", signup: "Creează cont", forgot: "Trimite link de resetare" }[mode]}</button>
+ <div class="mut" style="text-align:center"><a href="#" data-m="login">Autentificare</a> · <a href="#" data-m="signup">Cont nou</a> · <a href="#" data-m="forgot">Am uitat parola</a></div>
+ ${mode === "signup" ? '<div class="mut">Contul nou nu are rol. Un Super Admin îl activează din aplicația de distribuții.</div>' : ""}</div></div>`;
+        document.querySelectorAll("[data-m]").forEach(
+          (a) =>
+            (a.onclick = (e) => {
+              e.preventDefault();
+              authView(a.dataset.m);
+            }),
+        );
+        $("#go").onclick = async () => {
+          const email = $("#em").value.trim(),
+            password = $("#pw")?.value,
+            url = location.href.split("#")[0];
+          let r;
+          if (mode === "login")
+            r = await sb.auth.signInWithPassword({ email, password });
+          else if (mode === "signup")
+            r = await sb.auth.signUp({
+              email,
+              password,
+              options: { emailRedirectTo: url },
+            });
+          else
+            r = await sb.auth.resetPasswordForEmail(email, { redirectTo: url });
+          if (r.error)
+            return toast(
+              r.error.message === "Invalid login credentials"
+                ? "Email sau parolă incorectă."
+                : r.error.message,
+              1,
+            );
+          if (mode !== "login")
+            toast(
+              mode === "signup"
+                ? "Verifică emailul pentru confirmare."
+                : "Link trimis pe email.",
+            );
+        };
+      }
+      async function boot() {
+        if (recoverMode) return;
+        const {
+          data: { session },
+        } = await sb.auth.getSession();
+        if (!session) return authView();
+        const { data: p } = await sb
+          .from("profiles")
+          .select("*")
+          .eq("id", session.user.id)
+          .single();
+        me = p;
+        if (!p || !TABS[p.role]) {
+          $("#app").innerHTML =
+            `<div class="auth"><div class="card"><h3>Acces indisponibil</h3><p class="mut">${p && p.role ? "Rolul tău nu are acces la această aplicație." : "Contul nu are încă un rol alocat. Contactează un Super Admin."}</p><button class="btn" id="lo">Deconectare</button></div></div>`;
+          $("#lo").onclick = () => sb.auth.signOut();
+          return;
+        }
+        const { data: s } = await sb
+          .from("asm_setari")
+          .select("*")
+          .eq("id", 1)
+          .single();
+        S = s || {
+          max_in_lucru: 3,
+          prag_alerta_ore: 8,
+          poze_obligatorii: true,
+        };
+        const { data: pr } = await sb.from("profiles").select("id,nume,email");
+        (pr || []).forEach((x) => (names[x.id] = x.nume || x.email));
+        names[me.id] = me.nume || me.email;
+        $("#app").innerHTML =
+          `<div class="topbar"><header><div><img src="logo.webp" alt="Asamblare Logo" class="logo-header"><div class="who"><span class="role role-${p.role}">${ROL[p.role]}</span><span class="uname">${esc(names[me.id])}</span></div></div><div class="hdr-actions"><div><button class="btn gh sm" style="color:#fff;border-color:#475569" id="lo">Deconectare</button></div><div><button class="btn gh sm" style="color:#fff;border-color:#475569" id="cp">Schimbă parola</button></div></div></header><nav>${TABS[p.role].map((t) => `<button data-a="tab" data-t="${t[0]}">${t[1]}</button>`).join("")}</nav></div><main id="c"></main>`;
+        $("#lo").onclick = () => sb.auth.signOut();
+        $("#cp").onclick = () => openChangePassword($("#cp"));
+        if (rt) sb.removeChannel(rt);
+        rt = sb
+          .channel("asm")
+          .on(
+            "postgres_changes",
+            { event: "*", schema: "public", table: "asm_produse" },
+            () => {
+              if (
+                !F &&
+                ["lucru", "remediat", "ctc", "prioritare", "stadii"].includes(tab) &&
+                !document.querySelector(".ov")
+              ) {
+                clearTimeout(rt._d);
+                rt._d = setTimeout(() => go(tab), 1500);
+              }
+            },
+          )
+          .subscribe();
+        go(TABS[p.role][0][0]);
+      }
+      let booting = false;
+      async function boot0() {
+        if (booting) return;
+        booting = true;
+        try {
+          await boot();
+        } finally {
+          booting = false;
+        }
+      }
+      sb.auth.onAuthStateChange((ev, ss) => {
+        if (ev === "PASSWORD_RECOVERY") {
+          recoverMode = true;
+          renderSetPassword();
+          return;
+        }
+        if (ev === "SIGNED_OUT") {
+          me = null;
+          F = null;
+          setTimeout(boot0, 0);
+        } else if (
+          ev === "SIGNED_IN" &&
+          (!me || !ss || ss.user.id !== me.id) &&
+          !recoverMode
+        )
+          setTimeout(boot0, 0);
+      });
+
+      /* ---------- NAV ---------- */
+      const V = {
+        preia: vPreia,
+        lucru: vLucru,
+        remediat: vRem,
+        ctc: vCtc,
+        prioritare: vPrioritare,
+        stadii: vStadii,
+        checklist: vCheck,
+        statistici: vStatistici,
+        setari: vSet,
+      };
+      function fitListScroll() {
+        document.querySelectorAll("#c .list-scroll").forEach((el) => {
+          el.style.maxHeight = "none";
+          const overflow =
+            document.documentElement.scrollHeight - window.innerHeight;
+          if (overflow > 0) {
+            const h = el.clientHeight - overflow - 8;
+            el.style.maxHeight = Math.max(150, h) + "px";
+          }
+        });
+      }
+      window.addEventListener("resize", fitListScroll);
+      function go(t) {
+        F = null;
+        clearInterval(tmr);
+        tab = t;
+        document
+          .querySelectorAll("nav button")
+          .forEach((b) => b.classList.toggle("on", b.dataset.t === t));
+        V[t]($("#c")).then?.(fitListScroll);
+        fitListScroll();
+      }
+      const act = {
+        tab: (d) => go(d.t),
+        preia: async (d) =>
+          fisa(await rpc("asm_preia", { p_antedepozit_id: d.id })),
+        open: (d) => (d.tip === "remediere" ? rem(d.id) : fisa(d.id)),
+        prem: async (d) =>
+          rem(await rpc("asm_preia_remediere", { p_asm: d.id })),
+        pctc: async (d) => fisa(await rpc("asm_ctc_preia", { p_asm: d.id })),
+        hist: (d) => ist(d.id),
+        pdf: (d) => genereazaFisaPdf(d.id),
+        elib: async (d) => {
+          const m = prompt("Motiv eliberare:");
+          if (m === null) return;
+          await rpc("asm_elibereaza", { p_asm: d.id, p_motiv: m });
+          go(tab);
+        },
+        revoc: async (d) => {
+          const m = prompt("Motiv revocare aviz (obligatoriu):");
+          if (!m) return;
+          await rpc("asm_revoca_aviz", { p_asm: d.id, p_motiv: m });
+          go(tab);
+        },
+        kpi: (d) => {
+          stF = stF === d.s ? "" : d.s;
+          stPage = 1;
+          go("stadii");
+        },
+        rez: (d) => setRez(+d.i, d.v),
+        ner: (d) => addNer(d.c || null),
+        rmner: (d) => rmNer(d.id),
+        back: () => go(tab),
+        fin: async () => {
+          await rpc(
+            F.e.tip === "ctc"
+              ? "asm_ctc_avizeaza"
+              : "asm_finalizeaza_asamblare",
+            { p_etapa: F.e.id },
+          );
+          toast(
+            F.e.tip === "ctc"
+              ? "Aviz CTC acordat."
+              : "Produs trimis în Depozit central.",
+          );
+          go(tab);
+        },
+        send: async () => {
+          await rpc("asm_trimite_remediere", { p_etapa: F.e.id });
+          toast("Produs trimis la remediere.");
+          go(tab);
+        },
+        renunta: async () => {
+          if (!confirm("Produsul revine în Antedepozit Import. Continui?"))
+            return;
+          await rpc("asm_renunta", {
+            p_etapa: F.e.id,
+            p_motiv: prompt("Motiv (opțional):") || null,
+          });
+          go(tab);
+        },
+        remfin: async () => {
+          await rpc("asm_finalizeaza_remediere", {
+            p_etapa: F.e.id,
+            p_nota: $("#rn")?.value || null,
+          });
+          toast("Remediere finalizată. Produsul așteaptă CTC.");
+          go(tab);
+        },
+        togmodel: (d) => {
+          if (modeleExpandate.has(d.key)) modeleExpandate.delete(d.key);
+          else modeleExpandate.add(d.key);
+          go("checklist");
+        },
+        togctc: () => {
+          ctcExpandat = !ctcExpandat;
+          go("checklist");
+        },
+        delsab: async (d) => {
+          await sb.from("asm_checklist_sabloane").delete().eq("id", d.id);
+          go("checklist");
+        },
+        addsab: async (d) => {
+          const t = $("#ns-" + d.t).value.trim();
+          if (!t) return;
+          let model = null,
+            mk = null;
+          if (d.t === "asamblare") {
+            model = $("#nm-asamblare").value.trim();
+            if (!model)
+              return toast("Completează modelul pentru acest criteriu.", 1);
+            mk = modelKey(model);
+          }
+          let q = sb
+            .from("asm_checklist_sabloane")
+            .select("ordine")
+            .eq("tip", d.t);
+          if (d.t === "asamblare") q = q.eq("model_key", mk);
+          const { data: ex } = await q;
+          const mx = Math.max(0, ...(ex || []).map((x) => x.ordine));
+          const ins = { tip: d.t, text: t, ordine: mx + 1 };
+          if (d.t === "asamblare") ins.model = model;
+          const r = await sb.from("asm_checklist_sabloane").insert(ins);
+          if (r.error) return toast(r.error.message, 1);
+          if (d.t === "asamblare") {
+            ultimulModel = model;
+            $("#ns-asamblare").value = "";
+          } else $("#ns-ctc").value = "";
+          go("checklist");
+        },
+        dupmodel: async (d) => {
+          const noul = (
+            prompt("Copiază criteriile la modelul (numele exact):") || ""
+          ).trim();
+          if (!noul) return;
+          const nmk = modelKey(noul);
+          const { data: srcRows } = await sb
+            .from("asm_checklist_sabloane")
+            .select("*")
+            .eq("tip", "asamblare")
+            .eq("model_key", d.key)
+            .order("ordine");
+          if (!srcRows || !srcRows.length) return toast("Nimic de copiat.", 1);
+          const { data: destEx } = await sb
+            .from("asm_checklist_sabloane")
+            .select("ordine")
+            .eq("tip", "asamblare")
+            .eq("model_key", nmk);
+          let next = Math.max(0, ...(destEx || []).map((x) => x.ordine));
+          const rows = srcRows.map((x) => ({
+            tip: "asamblare",
+            model: noul,
+            text: x.text,
+            ordine: ++next,
+            activ: x.activ,
+          }));
+          const r = await sb.from("asm_checklist_sabloane").insert(rows);
+          if (r.error) return toast(r.error.message, 1);
+          ultimulModel = noul;
+          toast(`Criterii copiate la modelul „${noul}".`);
+          go("checklist");
+        },
+        istlb: (d) => istLb(d.i),
+        istnav: (d) => istLb(IST.i + Number(d.d)),
+        istdl: () => istDl(IST.i),
+        istlbx: () => istLbX(),
+        close: () => document.querySelector(".ov")?.remove(),
+        opendate: (d) => {
+          const el = document.getElementById(d.t);
+          if (!el) return;
+          try {
+            el.showPicker ? el.showPicker() : el.focus();
+          } catch {
+            el.focus();
+          }
+        },
+      };
+      document.addEventListener("click", (e) => {
+        const b = e.target.closest("[data-a]");
+        if (b) {
+          e.preventDefault();
+          act[b.dataset.a]?.(b.dataset);
+        }
+      });
+      document.addEventListener("change", async (e) => {
+        const t = e.target,
+          c = t.dataset.c;
+        if (!c) return;
+        if (c === "desc") {
+          const n = F.ner.find((x) => x.id === t.dataset.id);
+          n.descriere = t.value;
+          const r = await sb
+            .from("asm_nereguli")
+            .update({ descriere: t.value })
+            .eq("id", t.dataset.id);
+          if (r.error) toast(r.error.message, 1);
+          foot();
+        } else if (c === "foto") foto(t);
+        else if (c === "rd") {
+          await rpc("asm_marcheaza_remediata", {
+            p_neregula: t.dataset.id,
+            p_remediata: t.checked,
+            p_nota: $("#nt-" + t.dataset.id)?.value || null,
+          });
+          rem(F.e.id);
+        } else if (c === "rnota") {
+          const chk = $("#rc-" + t.dataset.id);
+          if (chk.checked)
+            await rpc("asm_marcheaza_remediata", {
+              p_neregula: t.dataset.id,
+              p_remediata: true,
+              p_nota: t.value,
+            });
+        } else if (c === "sab") {
+          const f = t.dataset.f,
+            val =
+              f === "activ" ? t.checked : f === "ordine" ? +t.value : t.value;
+          const r = await sb
+            .from("asm_checklist_sabloane")
+            .update({ [f]: val })
+            .eq("id", t.dataset.id);
+          if (r.error) return toast(r.error.message, 1);
+          if (f === "model") go("checklist");
+        } else if (c === "set") {
+          const r = await sb
+            .from("asm_setari")
+            .update({
+              [t.dataset.f]: t.type === "checkbox" ? t.checked : +t.value,
+            })
+            .eq("id", 1);
+          if (r.error) return toast(r.error.message, 1);
+          S[t.dataset.f] = t.type === "checkbox" ? t.checked : +t.value;
+          toast("Salvat.");
+        }
+      });
+
+      /* ---------- LISTE ---------- */
+      const prodTxt = (p) =>
+        `<div class="mono" style="font-weight:600">${esc(p.vin || "fără VIN")}</div><div class="mut">${esc(p.model || "—")} · ${esc(p.culoare || "—")}</div>`;
+      async function vPreia(c) {
+        c.innerHTML = `<div class="card"><input id="q" placeholder="Caută după VIN (minim 3 caractere)..." autocomplete="off"></div><div id="res" class="mut">Introdu cel puțin 3 caractere din VIN.</div>`;
+        let t;
+        $("#q").oninput = (e) => {
+          clearTimeout(t);
+          t = setTimeout(async () => {
+            const v = e.target.value.trim();
+            if (v.length < 3)
+              return ($("#res").innerHTML =
+                "Introdu cel puțin 3 caractere din VIN.");
+            const d = await rpc("asm_cauta_antedepozit", { p_vin: v });
+            $("#res").innerHTML = d.length
+              ? d
+                  .map(
+                    (p) =>
+                      `<div class="card row"><div>${prodTxt(p)}<div class="mut">în antedepozit din ${dt(p.created_at)}</div></div><button class="btn" data-a="preia" data-id="${p.id}">Preia pentru asamblare</button></div>`,
+                  )
+                  .join("")
+              : "Niciun rezultat.";
+          }, 350);
+        };
+        $("#q").focus();
+      }
+      async function vLucru(c) {
+        const { data } = await sb
+          .from("asm_etape")
+          .select("id,tip,started_at,asm_produse(vin,model,culoare)")
+          .eq("user_id", me.id)
+          .is("ended_at", null)
+          .order("started_at");
+        c.innerHTML =
+          `<div class="mut" style="margin-bottom:8px">Produse în lucru: ${(data || []).length} / ${S.max_in_lucru}</div>` +
+          ((data || [])
+            .map(
+              (e) =>
+                `<div class="card row"><div>${prodTxt(e.asm_produse)}<div class="mut">${e.tip} · de ${dur(Date.now() - new Date(e.started_at))}</div></div><button class="btn" data-a="open" data-id="${e.id}" data-tip="${e.tip}">Deschide</button></div>`,
+            )
+            .join("") || '<div class="mut">Nimic în lucru.</div>');
+      }
+      /* Coloanele necesare listelor de produse (verificate pe schema din baza de date) */
+      const PL_COLS =
+        "id,vin,model,culoare,stadiu,operator_curent,updated_at,nr_remedieri,sursa_remediere,ctc_solicitat_la,ctc_solicitat_de,ctc_solicitat_de_nume";
+
+      /* ---------- Utilitare pentru volume mari ---------- */
+      const PAGE_MAX = 1000; /* limita implicită Supabase/PostgREST pe un răspuns */
+      /* Citește toate paginile unei interogări (mk(de, până) întoarce interogarea cu .range aplicat).
+         Întoarce { rows, truncated } – truncated = true dacă s-a atins plafonul "max". */
+      async function fetchAll(mk, max = 20000) {
+        const rows = [];
+        for (let from = 0; from < max; from += PAGE_MAX) {
+          const { data, error } = await mk(from, from + PAGE_MAX - 1);
+          if (error) throw error;
+          rows.push(...(data || []));
+          if (!data || data.length < PAGE_MAX) return { rows, truncated: false };
+        }
+        return { rows, truncated: true };
+      }
+      /* .in("col", ids) cu liste lungi depășește lungimea URL-ului: se sparge în pachete. */
+      async function inChunks(ids, mk, size = 100) {
+        const parts = [];
+        for (let i = 0; i < ids.length; i += size) parts.push(ids.slice(i, i + size));
+        const res = await Promise.all(parts.map(mk));
+        return res.flatMap((r) => r.data || []);
+      }
+      const likeSafe = (q) => String(q || "").trim().replace(/[%_\\]/g, "");
+      const debounce = (fn, ms = 300) => {
+        let t;
+        return (...a) => {
+          clearTimeout(t);
+          t = setTimeout(() => fn(...a), ms);
+        };
+      };
+      const listQ = {},
+        listLim = {};
+      async function listaStadiu(c, st, btn, lbl, extra) {
+        const STEP = 50;
+        if (!listLim[st]) listLim[st] = STEP;
+        c.innerHTML = `<div class="card"><input id="lq" placeholder="Caută VIN (parțial, minim 3 caractere)..." value="${esc(listQ[st] || "")}" style="max-width:300px;margin-bottom:8px" autocomplete="off"><div id="lst" class="list-scroll"></div><div id="lmore" style="margin-top:8px"></div></div>`;
+        let seq = 0;
+        const load = async () => {
+          const my = ++seq,
+            q = likeSafe(listQ[st]);
+          let r = sb
+            .from("asm_produse")
+            .select(PL_COLS, { count: "exact" })
+            .eq("stadiu", st)
+            .is("operator_curent", null);
+          if (q.length >= 3) r = r.ilike("vin", `%${q}%`);
+          const { data, count, error } = await r
+            .order("updated_at")
+            .order("id")
+            .limit(listLim[st]);
+          if (my !== seq || !$("#lst")) return;
+          if (error) {
+            $("#lst").innerHTML =
+              '<div class="mut">Eroare la încărcarea listei. Reîncearcă.</div>';
+            return;
+          }
+          const all = data || [],
+            total = count ?? all.length;
+          $("#lst").innerHTML =
+            all
+              .map(
+                (p) =>
+                  `<div class="card row"><div>${prodTxt(p)}<div class="mut">de ${dur(Date.now() - new Date(p.updated_at))}${p.nr_remedieri ? ` · reverificare (remediat de ${p.nr_remedieri}×)` : ""}${extra && p.sursa_remediere ? ` · sursa: ${p.sursa_remediere}` : ""}</div></div><button class="btn" data-a="${btn}" data-id="${p.id}">${lbl}</button></div>`,
+              )
+              .join("") ||
+            '<div class="mut">Niciun produs în această listă.</div>';
+          $("#lmore").innerHTML =
+            total > all.length
+              ? `<span class="mut">Afișate ${all.length} din ${total}. </span>${all.length < PAGE_MAX ? '<button class="btn gh sm" id="lmoreBtn">Arată încă ' + STEP + "</button>" : '<span class="mut">Folosește căutarea după VIN pentru a restrânge lista.</span>'}`
+              : total
+                ? `<span class="mut">${total} produse</span>`
+                : "";
+          const mb = $("#lmoreBtn");
+          if (mb)
+            mb.onclick = () => {
+              listLim[st] = Math.min(PAGE_MAX, listLim[st] + STEP);
+              load();
+            };
+          fitListScroll();
+        };
+        $("#lq").oninput = debounce((e) => {
+          listQ[st] = e.target.value;
+          listLim[st] = STEP;
+          load();
+        });
+        await load();
+      }
+      function vRem(c) {
+        return listaStadiu(
+          c,
+          "in_remediere",
+          "prem",
+          "Preia pentru remediere",
+          1,
+        );
+      }
+      /* ---------- PRIORITARE CTC (cerute din Comenzi, aplicația de distribuție) ---------- */
+      async function vPrioritare(c) {
+        const { data, count } = await sb
+          .from("asm_produse")
+          .select(PL_COLS, { count: "exact" })
+          .eq("ctc_prioritar", true)
+          .eq("stadiu", "asteapta_ctc")
+          .is("operator_curent", null)
+          .order("ctc_solicitat_la")
+          .order("id")
+          .limit(200);
+        const all = data || [];
+        c.innerHTML =
+          `<div class="mut" style="margin-bottom:8px">Verificări CTC solicitate cu prioritate: ${count ?? all.length}${(count ?? 0) > all.length ? ` (afișate primele ${all.length})` : ""}</div><div class="list-scroll" id="lst">` +
+          (all
+            .map(
+              (p) =>
+                `<div class="card row"><div>${prodTxt(p)}<div class="mut"><span class="pill p-in_remediere">Prioritar</span> Cerut de ${esc(p.ctc_solicitat_de_nume || nm(p.ctc_solicitat_de))} la ${new Date(p.ctc_solicitat_la).toLocaleString("ro-RO", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}${p.nr_remedieri ? ` · reverificare (remediat de ${p.nr_remedieri}×)` : ""}</div></div><button class="btn" data-a="pctc" data-id="${p.id}">Preia pentru verificare CTC</button></div>`,
+            )
+            .join("") ||
+            '<div class="mut">Nicio solicitare prioritară în acest moment.</div>') +
+          "</div>";
+      }
+      function vCtc(c) {
+        return listaStadiu(
+          c,
+          "asteapta_ctc",
+          "pctc",
+          "Preia pentru verificare CTC",
+        );
+      }
+
+      /* ---------- FIȘĂ ASAMBLARE / CTC ---------- */
+      async function loadF(id) {
+        const { data: e } = await sb
+          .from("asm_etape")
+          .select("*,asm_produse(*)")
+          .eq("id", id)
+          .single();
+        if (!e || e.ended_at) {
+          F = null;
+          go(tab);
+          return false;
+        }
+        const tipS = e.tip === "ctc" ? "ctc" : "asamblare";
+        let sabQ = sb
+          .from("asm_checklist_sabloane")
+          .select("*")
+          .eq("tip", tipS)
+          .eq("activ", true)
+          .order("ordine");
+        if (tipS === "asamblare")
+          sabQ = sabQ.eq("model_key", modelKey(e.asm_produse.model));
+        const [s, r, n] = await Promise.all([
+          sabQ,
+          sb.from("asm_checklist_rezultate").select("*").eq("etapa_id", id),
+          sb
+            .from("asm_nereguli")
+            .select("*,asm_poze(*)")
+            .eq("asm_produs_id", e.asm_produs_id)
+            .order("created_at"),
+        ]);
+        F = {
+          e,
+          p: e.asm_produse,
+          sab: s.data || [],
+          rez: r.data || [],
+          ner: n.data || [],
+          url: {},
+        };
+        const paths = F.ner.flatMap((x) =>
+          x.asm_poze.map((p) => p.storage_path),
+        );
+        if (paths.length) {
+          const { data } = await sb.storage
+            .from(B)
+            .createSignedUrls(paths, 3600);
+          (data || []).forEach((u) => (F.url[u.path] = u.signedUrl));
+        }
+        return true;
+      }
+      const cur = () => F.ner.filter((n) => n.etapa_id === F.e.id),
+        imgs = (n, tip) =>
+          n.asm_poze
+            .filter((p) => p.tip === tip)
+            .map(
+              (p) =>
+                `<img src="${F.url[p.storage_path] || ""}" onclick="window.open(this.src)">`,
+            )
+            .join("");
+      const fotoBtn = (id, tip, lbl) =>
+        `<label class="lbl">📷 ${lbl}<input type="file" accept="image/*" capture="environment" data-c="foto" data-id="${id}" data-tip="${tip}"></label>`;
+      function nerBox(n) {
+        return `<div style="margin-bottom:8px;border:1px solid var(--line);border-radius:10px;padding:8px"><div style="display:flex;justify-content:flex-end;margin-bottom:4px"><button type="button" class="btn gh sm" data-a="rmner" data-id="${n.id}" title="Elimină neregula" style="padding:2px 9px;min-height:26px">✕</button></div><textarea data-c="desc" data-id="${n.id}" placeholder="Descrie neregula...">${esc(n.descriere)}</textarea><div class="ph">${imgs(n, "inainte")}${fotoBtn(n.id, "inainte", "Adaugă poză")}</div></div>`;
+      }
+      async function fisa(id) {
+        if (!(await loadF(id))) return;
+        const { e, p } = F;
+        const prev = F.ner.filter((n) => n.etapa_id !== e.id);
+        $("#c").innerHTML =
+          `<div class="card"><div class="row"><div>${prodTxt(p)}<div class="mut">${e.tip === "ctc" ? "Verificare CTC" : "Asamblare"} · început ${dt(e.started_at)}</div></div>${e.tip === "ctc" ? "" : '<div style="text-align:right"><div class="timer" id="tm"></div><div class="mut">de la preluare</div></div>'}</div></div>
+ ${e.tip === "ctc" && prev.length ? `<div class="al"><b>Reverificare</b> – defecte raportate anterior:<br>${prev.map((n) => "• " + esc(n.criteriu_text ? n.criteriu_text + ": " : "") + esc(n.descriere) + (n.status === "remediata" ? " ✔ remediat" : "")).join("<br>")}</div>` : ""}
+ ${F.sab.length ? "" : '<div class="al">Nu există criterii de checklist definite. Un Admin trebuie să le adauge din tabul „Checklist".</div>'}
+ ${F.sab
+   .map((s, i) => {
+     const r = F.rez.find((x) => x.ordine === i + 1),
+       nn = cur().filter((n) => n.criteriu_text === s.text);
+     return `<div class="crit ${r ? r.rezultat : ""}"><div class="row"><b>${i + 1}. ${esc(s.text)}</b><div class="tg"><button class="${r?.rezultat === "ok" ? "ok" : ""}" data-a="rez" data-i="${i}" data-v="ok">OK</button><button class="${r?.rezultat === "nok" ? "no" : ""}" data-a="rez" data-i="${i}" data-v="nok">NOK</button></div></div>${r?.rezultat === "nok" ? `<div class="def">${nn.map(nerBox).join("")}<button class="btn gh sm" data-a="ner" data-c="${esc(s.text)}">+ Altă neregulă la acest criteriu</button></div>` : ""}</div>`;
+   })
+   .join("")}
+ ${
+   cur().filter((n) => !n.criteriu_text).length
+     ? `<div class="crit nok"><b>Nereguli în afara checklist-ului</b><div class="def">${cur()
+         .filter((n) => !n.criteriu_text)
+         .map(nerBox)
+         .join("")}</div></div>`
+     : ""
+ }
+ <button class="btn gh sm" data-a="ner">+ Neregulă în afara checklist-ului</button>
+ <div class="foot"><div><button class="btn gh" data-a="back">← Înapoi</button> ${e.tip === "asamblare" ? '<button class="btn gh" data-a="renunta">Renunță</button>' : ""}</div><div id="ft"></div></div>`;
+        clearInterval(tmr);
+        if (e.tip !== "ctc") {
+          const tk = () => {
+            const el = $("#tm");
+            if (el) {
+              const s = Math.max(
+                  0,
+                  Math.floor((Date.now() - new Date(e.started_at)) / 1e3),
+                ),
+                f = (n) => String(n).padStart(2, "0");
+              el.textContent =
+                f((s / 3600) | 0) +
+                ":" +
+                f(((s / 60) % 60) | 0) +
+                ":" +
+                f(s % 60);
+            }
+          };
+          tk();
+          tmr = setInterval(tk, 1e3);
+        }
+        foot();
+      }
+      function foot() {
+        const c = cur(),
+          all = F.sab.every((s, i) =>
+            F.rez.some((r) => r.ordine === i + 1 && r.rezultat === "ok"),
+          ),
+          ft = $("#ft");
+        if (!ft) return;
+        if (c.length) {
+          const okN = c.every(
+            (n) =>
+              n.descriere.trim() &&
+              (!S.poze_obligatorii ||
+                n.asm_poze.some((p) => p.tip === "inainte")),
+          );
+          ft.innerHTML = `<button class="btn red" data-a="send" ${okN ? "" : "disabled"} title="${okN ? "" : "Fiecare neregulă are nevoie de descriere și poză"}">Trimite la remediere</button>`;
+        } else
+          ft.innerHTML = `<button class="btn" data-a="fin" ${all ? "" : "disabled"}>${F.e.tip === "ctc" ? "Acordă aviz CTC" : "Trimite în Depozit central"}</button>`;
+      }
+      async function addNer(txt) {
+        const r = await sb.from("asm_nereguli").insert({
+          etapa_id: F.e.id,
+          asm_produs_id: F.e.asm_produs_id,
+          criteriu_text: txt,
+          descriere: "",
+        });
+        if (r.error) return toast(r.error.message, 1);
+        fisa(F.e.id);
+      }
+      async function rmNer(id) {
+        if (!confirm("Elimini această neregulă?")) return;
+        const n = cur().find((x) => x.id === id);
+        if (n && n.asm_poze && n.asm_poze.length) {
+          await sb.storage
+            .from(B)
+            .remove(n.asm_poze.map((p) => p.storage_path));
+          await sb.from("asm_poze").delete().eq("neregula_id", id);
+        }
+        const r = await sb.from("asm_nereguli").delete().eq("id", id);
+        if (r.error) return toast(r.error.message, 1);
+        fisa(F.e.id);
+      }
+      async function setRez(i, v) {
+        const s = F.sab[i],
+          has = cur().filter((n) => n.criteriu_text === s.text);
+        if (v === "ok" && has.length) {
+          if (
+            !confirm(
+              "Neregulile notate pentru acest criteriu vor fi șterse. Continui?",
+            )
+          )
+            return;
+          await sb
+            .from("asm_nereguli")
+            .delete()
+            .eq("etapa_id", F.e.id)
+            .eq("criteriu_text", s.text);
+        }
+        const r = await sb.from("asm_checklist_rezultate").upsert(
+          {
+            etapa_id: F.e.id,
+            sablon_id: s.id,
+            text_criteriu: s.text,
+            ordine: i + 1,
+            rezultat: v,
+          },
+          { onConflict: "etapa_id,ordine" },
+        );
+        if (r.error) return toast(r.error.message, 1);
+        if (v === "nok" && !has.length) {
+          await addNer(s.text);
+          return;
+        }
+        fisa(F.e.id);
+      }
+      async function comp(f) {
+        const b = await createImageBitmap(f),
+          k = Math.min(1, 1600 / Math.max(b.width, b.height)),
+          c = document.createElement("canvas");
+        c.width = Math.round(b.width * k);
+        c.height = Math.round(b.height * k);
+        c.getContext("2d").drawImage(b, 0, 0, c.width, c.height);
+        return new Promise((r) => c.toBlob(r, "image/jpeg", 0.8));
+      }
+      async function foto(inp) {
+        const f = inp.files[0];
+        if (!f) return;
+        toast("Se încarcă poza...");
+        const bl = await comp(f),
+          path = `${F.e.asm_produs_id}/${inp.dataset.id}/${Date.now()}.jpg`;
+        const u = await sb.storage
+          .from(B)
+          .upload(path, bl, { contentType: "image/jpeg" });
+        if (u.error) return toast(u.error.message, 1);
+        const r = await sb.from("asm_poze").insert({
+          neregula_id: inp.dataset.id,
+          tip: inp.dataset.tip,
+          storage_path: path,
+        });
+        if (r.error) return toast(r.error.message, 1);
+        F.e.tip === "remediere" ? rem(F.e.id) : fisa(F.e.id);
+      }
+
+      /* ---------- FIȘĂ REMEDIERE ---------- */
+      async function rem(id) {
+        if (!(await loadF(id))) return;
+        const { e, p } = F;
+        $("#c").innerHTML =
+          `<div class="card"><div class="row"><div>${prodTxt(p)}<div class="mut">Remediere · început ${dt(e.started_at)}</div></div></div></div>
+ ${
+   F.ner
+     .map(
+       (
+         n,
+       ) => `<div class="card"><div class="mut">${esc(n.criteriu_text || "În afara checklist-ului")}</div><div style="margin:4px 0"><b>${esc(n.descriere)}</b></div><div class="ph">${imgs(n, "inainte")}</div>
+ <div class="row"><label><input type="checkbox" style="width:auto" id="rc-${n.id}" data-c="rd" data-id="${n.id}" ${n.status === "remediata" ? "checked" : ""}> Remediată</label>${fotoBtn(n.id, "dupa", "Poză după")}</div><div class="ph">${imgs(n, "dupa")}</div>
+ <input id="nt-${n.id}" data-c="rnota" data-id="${n.id}" placeholder="Notă remediere (opțional)" value="${esc(n.nota_remediere || "")}"></div>`,
+     )
+     .join("") || '<div class="mut">Nu există nereguli înregistrate.</div>'
+ }
+ <div class="card"><textarea id="rn" placeholder="Notă generală (opțional)"></textarea></div>
+ <div class="foot"><button class="btn gh" data-a="back">← Înapoi</button><button class="btn" data-a="remfin" ${F.ner.every((n) => n.status === "remediata") ? "" : "disabled"}>Trimite în Depozit central</button></div>`;
+        clearInterval(tmr);
+      }
+
+      /* ---------- ADMIN ---------- */
+      let stF = "",
+        stQ = "",
+        stPage = 1;
+      const PER_PAGE = 30;
+      const TIP_ACT = {
+        asamblare: "Asamblare",
+        remediere: "Remediere",
+        ctc: "CTC",
+      };
+      let staDe = "",
+        staPana = "",
+        staModel = "",
+        staCuloare = "",
+        staStadiu = "",
+        staOperator = "",
+        staTip = "",
+        staRezultat = "",
+        staVin = "",
+        staPage = 1,
+        staRows = [],
+        staOperatori = [],
+        staFiltered = [];
+      async function vStadii(c) {
+        c.innerHTML = `<div id="stLate"></div>
+ <div class="kpis" id="stKpis">${Object.keys(ST)
+   .map(
+     (k) =>
+       `<button class="kpi ${stF === k ? "on" : ""}" data-a="kpi" data-s="${k}"><span class="pill p-${k}">${ST[k]}</span><b>…</b></button>`,
+   )
+   .join("")}</div>
+ <div class="card"><input id="sq" placeholder="Caută VIN (parțial, minim 3 caractere)..." autocomplete="off" value="${esc(stQ)}" style="max-width:300px;margin-bottom:8px"><div class="wrap"><div class="list-scroll"><table><thead><tr><th>Nr. crt.</th><th>VIN</th><th>Model</th><th>Culoare</th><th>Stadiu</th><th>De cât timp</th><th>Operator</th><th>Remedieri</th><th></th></tr></thead><tbody id="tb"></tbody></table></div></div><div class="pg-bar"><button class="btn gh sm" id="pgPrev">‹ Anterior</button><span class="mut" id="pgInfo"></span><button class="btn gh sm" id="pgNext">Următor ›</button></div></div>`;
+        const now = Date.now();
+        let seq = 0;
+        /* Contoare pe stadii: câte o cerere "head" (fără rânduri), pe coloană indexată */
+        const loadKpis = async () => {
+          const keys = Object.keys(ST),
+            cnt = () =>
+              sb.from("asm_produse").select("id", { count: "exact", head: true }),
+            lateIso = new Date(now - S.prag_alerta_ore * 3600e3).toISOString();
+          const [counts, late] = await Promise.all([
+            Promise.all(keys.map((k) => cnt().eq("stadiu", k))),
+            cnt().eq("stadiu", "in_asamblare").lt("updated_at", lateIso),
+          ]);
+          if (tab !== "stadii") return;
+          keys.forEach((k, i) => {
+            const b = document.querySelector(`#stKpis .kpi[data-s="${k}"] b`);
+            if (b) b.textContent = counts[i].count ?? 0;
+          });
+          const n = late.count || 0,
+            el = $("#stLate");
+          if (el)
+            el.innerHTML = n
+              ? `<div class="al">⚠️ ${n} produse depășesc pragul de timp în asamblare (> ${S.prag_alerta_ore} h).</div>`
+              : "";
+        };
+        /* O pagină de produse: filtrare, căutare și paginare pe server */
+        const loadPage = async () => {
+          const my = ++seq,
+            q = likeSafe(stQ);
+          const build = (page) => {
+            let r = sb.from("asm_produse").select(PL_COLS, { count: "exact" });
+            if (stF) r = r.eq("stadiu", stF);
+            if (q.length >= 3) r = r.ilike("vin", `%${q}%`);
+            return r
+              .order("updated_at", { ascending: false })
+              .order("id")
+              .range((page - 1) * PER_PAGE, page * PER_PAGE - 1);
+          };
+          let res = await build(stPage);
+          if (res.error && stPage > 1) {
+            stPage = 1;
+            res = await build(1);
+          }
+          if (my !== seq || !$("#tb")) return;
+          if (res.error) {
+            $("#tb").innerHTML =
+              '<tr><td colspan="9" class="mut">Eroare la încărcare. Reîncearcă.</td></tr>';
+            return;
+          }
+          const pageItems = res.data || [],
+            total = res.count ?? pageItems.length,
+            pages = Math.max(1, Math.ceil(total / PER_PAGE)),
+            start = (stPage - 1) * PER_PAGE;
+          const idsAvizate = pageItems
+            .filter((p) => p.stadiu === "ctc_avizat")
+            .map((p) => p.id);
+          const avizatDe = {};
+          if (idsAvizate.length) {
+            const { data: ctcEt } = await sb
+              .from("asm_etape")
+              .select("asm_produs_id,user_id,ended_at")
+              .eq("tip", "ctc")
+              .not("ended_at", "is", null)
+              .in("asm_produs_id", idsAvizate)
+              .order("ended_at", { ascending: false });
+            (ctcEt || []).forEach((e) => {
+              if (!(e.asm_produs_id in avizatDe))
+                avizatDe[e.asm_produs_id] = e.user_id;
+            });
+            if (my !== seq || !$("#tb")) return;
+          }
+          $("#tb").innerHTML =
+            pageItems
+              .map(
+                (p, i) =>
+                  `<tr><td>${start + i + 1}</td><td class="mono">${esc(p.vin || "—")}</td><td>${esc(p.model || "—")}</td><td>${esc(p.culoare || "—")}</td><td><span class="pill p-${p.stadiu}">${ST[p.stadiu]}</span></td><td>${dur(now - new Date(p.updated_at))}</td><td>${p.operator_curent ? esc(nm(p.operator_curent)) : p.stadiu === "ctc_avizat" && avizatDe[p.id] ? esc(nm(avizatDe[p.id])) : "—"}</td><td>${p.nr_remedieri}</td><td><button class="btn gh sm" data-a="hist" data-id="${p.id}">Istoric</button> ${p.operator_curent ? `<button class="btn gh sm" data-a="elib" data-id="${p.id}">Eliberează</button>` : ""}${p.stadiu === "ctc_avizat" ? `<button class="btn gh sm" data-a="revoc" data-id="${p.id}">Revocă aviz</button>` : ""}</td></tr>`,
+              )
+              .join("") ||
+            '<tr><td colspan="9" class="mut">Niciun produs.</td></tr>';
+          $("#pgInfo").textContent = total
+            ? `Pagina ${stPage} din ${pages} (${total} produse)`
+            : "Niciun produs";
+          $("#pgPrev").disabled = stPage <= 1;
+          $("#pgNext").disabled = stPage >= pages;
+          fitListScroll();
+        };
+        $("#pgPrev").onclick = () => {
+          stPage--;
+          loadPage();
+        };
+        $("#pgNext").onclick = () => {
+          stPage++;
+          loadPage();
+        };
+        $("#sq").oninput = debounce((e) => {
+          stQ = e.target.value;
+          stPage = 1;
+          loadPage();
+        });
+        loadKpis().catch(() => {});
+        await loadPage();
+      }
+      let indCache = null;
+      async function computeIndicatori() {
+        if (indCache && Date.now() - indCache.t < 120e3) return indCache.v;
+        const v = await computeIndicatori0();
+        indCache = { t: Date.now(), v };
+        return v;
+      }
+      async function computeIndicatori0() {
+        const de = new Date(Date.now() - 30 * 864e5).toISOString();
+        const { rows } = await fetchAll((a, b) =>
+          sb
+            .from("asm_etape")
+            .select("id,asm_produs_id,tip,rezultat,durata_sec,ended_at")
+            .not("ended_at", "is", null)
+            .gte("ended_at", de)
+            .order("ended_at", { ascending: false })
+            .order("id")
+            .range(a, b),
+        );
+        const avg = (arr) =>
+          arr.length
+            ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length)
+            : null;
+        const asmOk = rows
+          .filter((r) => r.tip === "asamblare" && r.rezultat === "ok")
+          .map((r) => r.durata_sec);
+        const remOk = rows
+          .filter((r) => r.tip === "remediere" && r.rezultat === "ok")
+          .map((r) => r.durata_sec);
+        const ctcOk = rows.filter(
+          (r) => r.tip === "ctc" && r.rezultat === "ok",
+        );
+        let pctPrima = "—";
+        if (ctcOk.length) {
+          const ids = [...new Set(ctcOk.map((r) => r.asm_produs_id))];
+          const remAny = await inChunks(ids, (ch) =>
+            sb
+              .from("asm_etape")
+              .select("asm_produs_id")
+              .eq("tip", "remediere")
+              .in("asm_produs_id", ch),
+          );
+          const cuRemediere = new Set(remAny.map((r) => r.asm_produs_id));
+          const primaOk = ctcOk.filter(
+            (r) => !cuRemediere.has(r.asm_produs_id),
+          ).length;
+          pctPrima = Math.round((primaOk / ctcOk.length) * 100) + "%";
+        }
+        const { rows: nok } = await fetchAll(
+          (a, b) =>
+            sb
+              .from("asm_checklist_rezultate")
+              .select("id,text_criteriu")
+              .eq("rezultat", "nok")
+              .gte("bifat_la", de)
+              .order("bifat_la", { ascending: false })
+              .order("id")
+              .range(a, b),
+          10000,
+        );
+        let topCrit = "—";
+        if (nok && nok.length) {
+          const cnt = {};
+          nok.forEach(
+            (r) => (cnt[r.text_criteriu] = (cnt[r.text_criteriu] || 0) + 1),
+          );
+          topCrit = Object.entries(cnt).sort((a, b) => b[1] - a[1])[0][0];
+        }
+        const card = (l, v) =>
+          `<div><div class="mut">${l}</div><b style="font-size:20px">${v}</b></div>`;
+        return `<div class="kpis" style="margin-top:0;margin-bottom:0">${card("Timp mediu asamblare", asmOk.length ? dur(avg(asmOk) * 1e3) : "—")}${card("Aprobate din prima la CTC", pctPrima)}${card("Timp mediu remediere", remOk.length ? dur(avg(remOk) * 1e3) : "—")}${card("Criteriu cu cele mai multe NOK", esc(topCrit))}</div>`;
+      }
+
+      function isoZi(d) {
+        return d.toISOString().slice(0, 10);
+      }
+      function fmtDMY(iso) {
+        if (!iso) return "";
+        const [y, m, d] = iso.split("-");
+        return `${d}.${m}.${y}`;
+      }
+      function fmtDT(t) {
+        if (!t) return "—";
+        const d = new Date(t),
+          p = (n) => String(n).padStart(2, "0");
+        return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+      }
+      function fitStaListScroll() {
+        const el = document.getElementById("staListScroll");
+        if (!el) return;
+        el.style.height = "auto";
+        const slack =
+          window.innerHeight - document.documentElement.scrollHeight;
+        const h = el.clientHeight + slack - 8;
+        el.style.height = Math.max(150, h) + "px";
+      }
+      window.addEventListener("resize", () => {
+        if (tab === "statistici") fitStaListScroll();
+      });
+
+      const STA_MAX = 20000;
+      async function fetchStatistici() {
+        try {
+          const { rows, truncated } = await fetchAll(
+            (a, b) =>
+              sb
+                .from("asm_etape")
+                .select(
+                  "id,asm_produs_id,tip,user_id,rezultat,durata_sec,started_at,ended_at,asm_produse(vin,model,culoare,stadiu)",
+                )
+                .not("ended_at", "is", null)
+                .gte("ended_at", staDe + "T00:00:00")
+                .lte("ended_at", staPana + "T23:59:59")
+                .order("ended_at", { ascending: false })
+                .order("id")
+                .range(a, b),
+            STA_MAX,
+          );
+          if (truncated)
+            toast(
+              `Perioada are peste ${STA_MAX} înregistrări: se afișează cele mai recente ${STA_MAX}. Restrânge perioada.`,
+              1,
+            );
+          staRows = rows.map(({ asm_produse, ...r }) => ({
+            ...r,
+            produs: asm_produse || {},
+          }));
+        } catch (err) {
+          staRows = [];
+          toast("Statisticile nu au putut fi încărcate. Reîncearcă.", 1);
+        }
+      }
+
+      async function vStatistici(c) {
+        if (!staDe || !staPana) {
+          staPana = isoZi(new Date());
+          staDe = isoZi(new Date(Date.now() - 30 * 864e5));
+        }
+        if (!staOperatori.length) {
+          const { data: op } = await sb
+            .from("profiles")
+            .select("id,nume,email,role")
+            .in("role", ["asm_operator", "asm_remediere", "asm_ctc"]);
+          staOperatori = op || [];
+        }
+        const dp = (id, val) =>
+          `<div class="dp"><input type="text" id="${id}Txt" class="dp-txt" data-a="opendate" data-t="${id}" readonly placeholder="ZZ.LL.AAAA" value="${fmtDMY(val)}"><input type="date" id="${id}" class="dp-native" value="${val}" tabindex="-1"></div>`;
+        c.innerHTML = `<div class="card" style="padding:6px 14px;margin-bottom:6px"><h4 style="margin:0 0 3px">Indicatori (ultimele 30 zile)</h4><div id="indic" class="mut">Se calculează...</div></div>
+ <div class="card sta-filters" style="padding:8px 14px;margin-bottom:6px">
+   <div style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:6px">
+     <div style="max-width:130px;flex:1 1 120px"><div class="mut" style="margin-bottom:1px">Din data</div>${dp("staDe", staDe)}</div>
+     <div style="max-width:130px;flex:1 1 120px"><div class="mut" style="margin-bottom:1px">Până în data</div>${dp("staPana", staPana)}</div>
+     <div style="max-width:170px;flex:1 1 150px"><div class="mut" style="margin-bottom:1px">Model</div><select id="staModel"><option value="">Toate</option>${[
+       ...new Set(staRows.map((r) => r.produs.model).filter(Boolean)),
+     ]
+       .sort()
+       .map(
+         (m) =>
+           `<option value="${esc(m)}" ${staModel === m ? "selected" : ""}>${esc(m)}</option>`,
+       )
+       .join("")}</select></div>
+     <div style="max-width:150px;flex:1 1 140px"><div class="mut" style="margin-bottom:1px">Culoare</div><select id="staCuloare"><option value="">Toate</option>${[
+       ...new Set(staRows.map((r) => r.produs.culoare).filter(Boolean)),
+     ]
+       .sort()
+       .map(
+         (cu) =>
+           `<option value="${esc(cu)}" ${staCuloare === cu ? "selected" : ""}>${esc(cu)}</option>`,
+       )
+       .join("")}</select></div>
+     <div style="max-width:170px;flex:1 1 150px"><div class="mut" style="margin-bottom:1px">Stadiu</div><select id="staStadiu"><option value="">Toate</option>${Object.keys(
+       ST,
+     )
+       .map(
+         (k) =>
+           `<option value="${k}" ${staStadiu === k ? "selected" : ""}>${ST[k]}</option>`,
+       )
+       .join("")}</select></div>
+     <div style="max-width:190px;flex:1 1 160px"><div class="mut" style="margin-bottom:1px">Operator</div><select id="staOperator"><option value="">Toți</option>${staOperatori.map((o) => `<option value="${o.id}" ${staOperator === o.id ? "selected" : ""}>${esc(o.nume || o.email)}</option>`).join("")}</select></div>
+     <div style="max-width:160px;flex:1 1 140px"><div class="mut" style="margin-bottom:1px">Tip activitate</div><select id="staTip"><option value="">Toate</option>${Object.keys(
+       TIP_ACT,
+     )
+       .map(
+         (k) =>
+           `<option value="${k}" ${staTip === k ? "selected" : ""}>${TIP_ACT[k]}</option>`,
+       )
+       .join("")}</select></div>
+     <div style="max-width:130px;flex:1 1 120px"><div class="mut" style="margin-bottom:1px">Rezultat</div><select id="staRezultat"><option value="">Toate</option><option value="ok" ${staRezultat === "ok" ? "selected" : ""}>OK</option><option value="nok" ${staRezultat === "nok" ? "selected" : ""}>NOK</option></select></div>
+     <div style="max-width:200px;flex:1 1 160px"><div class="mut" style="margin-bottom:1px">VIN (parțial)</div><input id="staVin" placeholder="Caută VIN..." value="${esc(staVin)}"></div>
+     <div style="flex:1 1 140px;max-width:170px"><button class="btn gh sm" id="staExport" style="width:100%">⬇ Exportă Excel</button></div>
+   </div>
+   <div class="wrap"><div class="list-scroll" id="staListScroll" style="max-height:none"><table class="tbl-sta"><thead><tr><th>Nr.</th><th>Data</th><th>Tip</th><th>Operator</th><th>VIN</th><th>Model</th><th>Culoare</th><th>Stadiu</th><th>Rez.</th><th>Durată</th></tr></thead><tbody id="tbSta"></tbody></table></div></div>
+   <div class="pg-bar"><button class="btn gh sm" id="staPrev">‹ Anterior</button><span class="mut" id="staInfo"></span><button class="btn gh sm" id="staNext">Următor ›</button></div>
+ </div>`;
+        const draw = () => {
+          const q = staVin.toLowerCase();
+          staFiltered = staRows.filter(
+            (r) =>
+              (!staModel || r.produs.model === staModel) &&
+              (!staCuloare || r.produs.culoare === staCuloare) &&
+              (!staStadiu || r.produs.stadiu === staStadiu) &&
+              (!staOperator || r.user_id === staOperator) &&
+              (!staTip || r.tip === staTip) &&
+              (!staRezultat || r.rezultat === staRezultat) &&
+              (r.produs.vin || "").toLowerCase().includes(q),
+          );
+          const total = staFiltered.length,
+            pages = Math.max(1, Math.ceil(total / PER_PAGE));
+          if (staPage > pages) staPage = pages;
+          if (staPage < 1) staPage = 1;
+          const start = (staPage - 1) * PER_PAGE,
+            pageItems = staFiltered.slice(start, start + PER_PAGE);
+          $("#tbSta").innerHTML =
+            pageItems
+              .map(
+                (r, i) =>
+                  `<tr><td>${start + i + 1}</td><td>${fmtDT(r.ended_at)}</td><td>${TIP_ACT[r.tip] || esc(r.tip)}</td><td>${esc(nm(r.user_id))}</td><td class="mono">${esc(r.produs.vin || "—")}</td><td>${esc(r.produs.model || "—")}</td><td>${esc(r.produs.culoare || "—")}</td><td>${r.produs.stadiu ? `<span class="pill p-${r.produs.stadiu}">${ST[r.produs.stadiu]}</span>` : "—"}</td><td>${(r.rezultat || "—").toUpperCase()}</td><td>${r.durata_sec ? dur(r.durata_sec * 1e3) : "—"}</td></tr>`,
+              )
+              .join("") ||
+            '<tr><td colspan="10" class="mut">Nicio înregistrare.</td></tr>';
+          $("#staInfo").textContent = total
+            ? `Pagina ${staPage} din ${pages} (${total} înregistrări)`
+            : "Nicio înregistrare";
+          $("#staPrev").disabled = staPage <= 1;
+          $("#staNext").disabled = staPage >= pages;
+          fitStaListScroll();
+        };
+        const reload = async () => {
+          $("#tbSta").innerHTML =
+            '<tr><td colspan="10" class="mut">Se încarcă...</td></tr>';
+          await fetchStatistici();
+          draw();
+        };
+        $("#staDe").onchange = (e) => {
+          staDe = e.target.value;
+          $("#staDeTxt").value = fmtDMY(staDe);
+          staPage = 1;
+          reload();
+        };
+        $("#staPana").onchange = (e) => {
+          staPana = e.target.value;
+          $("#staPanaTxt").value = fmtDMY(staPana);
+          staPage = 1;
+          reload();
+        };
+        $("#staModel").onchange = (e) => {
+          staModel = e.target.value;
+          staPage = 1;
+          draw();
+        };
+        $("#staCuloare").onchange = (e) => {
+          staCuloare = e.target.value;
+          staPage = 1;
+          draw();
+        };
+        $("#staStadiu").onchange = (e) => {
+          staStadiu = e.target.value;
+          staPage = 1;
+          draw();
+        };
+        $("#staOperator").onchange = (e) => {
+          staOperator = e.target.value;
+          staPage = 1;
+          draw();
+        };
+        $("#staTip").onchange = (e) => {
+          staTip = e.target.value;
+          staPage = 1;
+          draw();
+        };
+        $("#staRezultat").onchange = (e) => {
+          staRezultat = e.target.value;
+          staPage = 1;
+          draw();
+        };
+        $("#staVin").oninput = (e) => {
+          staVin = e.target.value;
+          staPage = 1;
+          draw();
+        };
+        $("#staPrev").onclick = () => {
+          staPage--;
+          draw();
+        };
+        $("#staNext").onclick = () => {
+          staPage++;
+          draw();
+        };
+        $("#staExport").onclick = () => exportStatisticiExcel();
+        await reload();
+        computeIndicatori()
+          .then((x) => {
+            const el = $("#indic");
+            if (el) el.innerHTML = x;
+            fitStaListScroll();
+          })
+          .catch(() => {
+            const el = $("#indic");
+            if (el) el.innerHTML = '<span class="mut">Indicatorii nu au putut fi calculați.</span>';
+          });
+      }
+
+      async function exportStatisticiExcel() {
+        if (!staFiltered.length) return toast("Nu există date de exportat.", 1);
+        try {
+          await loadExcelJS();
+        } catch {
+          return toast(
+            "Biblioteca Excel nu s-a încărcat. Verifică conexiunea și reîncearcă.",
+            1,
+          );
+        }
+        const wb = new ExcelJS.Workbook();
+        const ws = wb.addWorksheet("Statistici");
+        ws.columns = [
+          { header: "Nr. crt.", key: "nr", width: 8 },
+          { header: "Data", key: "data", width: 18 },
+          { header: "Tip activitate", key: "tip", width: 16 },
+          { header: "Operator", key: "operator", width: 22 },
+          { header: "VIN", key: "vin", width: 20 },
+          { header: "Model", key: "model", width: 16 },
+          { header: "Culoare", key: "culoare", width: 14 },
+          { header: "Stadiu curent", key: "stadiu", width: 16 },
+          { header: "Rezultat", key: "rezultat", width: 12 },
+          { header: "Durată", key: "durata", width: 12 },
+        ];
+        ws.getRow(1).font = { bold: true };
+        staFiltered.forEach((r, i) =>
+          ws.addRow({
+            nr: i + 1,
+            data: fmtDT(r.ended_at),
+            tip: TIP_ACT[r.tip] || r.tip,
+            operator: nm(r.user_id),
+            vin: r.produs.vin || "—",
+            model: r.produs.model || "—",
+            culoare: r.produs.culoare || "—",
+            stadiu: r.produs.stadiu ? ST[r.produs.stadiu] : "—",
+            rezultat: (r.rezultat || "—").toUpperCase(),
+            durata: r.durata_sec ? dur(r.durata_sec * 1e3) : "—",
+          }),
+        );
+        const buf = await wb.xlsx.writeBuffer();
+        const blob = new Blob([buf], {
+          type: "application/octet-stream",
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `statistici-asamblare_${staDe}_${staPana}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }
+
+      /* ---------- POZE ÎN ISTORIC PRODUS ---------- */
+      const IST = { items: [], url: {}, signed: false, i: 0 };
+      function istNereguli(ner, etape, vin) {
+        IST.items = [];
+        IST.url = {};
+        IST.signed = false;
+        IST.i = 0;
+        if (!ner.length) return { h: "", c: 0 };
+        const eMap = new Map(etape.map((e) => [e.id, e])),
+          ET = { asamblare: "Asamblare", remediere: "Remediere", ctc: "CTC" },
+          slug = (x) => String(x || "").replace(/[^A-Za-z0-9_-]+/g, "");
+        let total = 0;
+        const cards = ner
+          .map((n, k) => {
+            const e = eMap.get(n.etapa_id),
+              et = e ? e.tip : "",
+              rem = n.status === "remediata",
+              poze = (n.asm_poze || [])
+                .slice()
+                .sort((a, b) =>
+                  String(a.storage_path).localeCompare(String(b.storage_path)),
+                ),
+              titlu = n.criteriu_text || "Neregulă " + (k + 1),
+              th = (tip) => {
+                const lst = poze.filter((p) => p.tip === tip);
+                if (!lst.length) return '<span class="mut">—</span>';
+                return lst
+                  .map((p, j) => {
+                    const idx = IST.items.length,
+                      ts = (p.storage_path.match(/(\d{10,})\.jpg$/) || [])[1],
+                      stg = tip === "dupa" ? "Remediere" : ET[et] || "—";
+                    IST.items.push({
+                      path: p.storage_path,
+                      cap: `Neregula ${k + 1}: ${titlu} · ${tip === "dupa" ? "După" : "Înainte"} · ${stg}${ts ? " · " + dt(Number(ts)) : ""}`,
+                      name: `${slug(vin)}_${slug(tip === "dupa" ? "remediere" : et || "etapa")}_neregula${k + 1}_${tip}_${j + 1}.jpg`,
+                    });
+                    total++;
+                    return `<img data-p="${esc(p.storage_path)}" data-a="istlb" data-i="${idx}" loading="lazy" alt="">`;
+                  })
+                  .join("");
+              };
+            const inainte = th("inainte"),
+              dupa = th("dupa");
+            return `<div class="ist-nr"><div class="h"><span>${esc(titlu)}</span><span class="ist-b ${rem ? "r" : "o"}">${rem ? "REMEDIATĂ" : "DESCHISĂ"}</span></div>
+ <div style="font-size:13px;margin:4px 0">${esc(n.descriere || "—")}</div>
+ <div class="mut" style="font-size:12px">Constatată la ${esc(ET[et] || "—")}${e ? " · " + esc(nm(e.user_id)) : ""} · ${dt(n.created_at)}</div>
+ ${rem ? `<div class="mut" style="font-size:12px">Remediată${n.remediata_de ? " de " + esc(nm(n.remediata_de)) : ""}${n.remediata_la ? " · " + dt(n.remediata_la) : ""}${n.nota_remediere ? " — " + esc(n.nota_remediere) : ""}</div>` : ""}
+ <div class="ist-pp"><div><div class="mut" style="font-size:12px">Înainte</div><div class="ph">${inainte}</div></div>
+ <div><div class="mut" style="font-size:12px">După</div><div class="ph">${dupa}</div></div></div></div>`;
+          })
+          .join("");
+        return {
+          c: total,
+          h: `<details id="ist-nr" style="margin-top:14px"><summary style="cursor:pointer;font-weight:700">📷 Nereguli și poze (${ner.length} · ${total} poze)</summary>${cards}</details>`,
+        };
+      }
+      function istInit(o) {
+        const d = o.querySelector("#ist-nr");
+        if (!d) return;
+        d.addEventListener("toggle", async () => {
+          if (!d.open || IST.signed || !IST.items.length) return;
+          IST.signed = true;
+          const { data, error } = await sb.storage
+            .from(B)
+            .createSignedUrls(
+              IST.items.map((x) => x.path),
+              3600,
+            );
+          if (error) {
+            IST.signed = false;
+            return toast(error.message, 1);
+          }
+          (data || []).forEach((u) => (IST.url[u.path] = u.signedUrl));
+          d.querySelectorAll("img[data-p]").forEach((im) => {
+            const u = IST.url[im.dataset.p];
+            if (u) im.src = u;
+          });
+        });
+      }
+      function istKey(e) {
+        if (e.key === "Escape") istLbX();
+        else if (e.key === "ArrowLeft") istLb(IST.i - 1);
+        else if (e.key === "ArrowRight") istLb(IST.i + 1);
+      }
+      function istLbX() {
+        document.querySelector(".ist-lb")?.remove();
+        document.removeEventListener("keydown", istKey);
+      }
+      function istLb(i) {
+        const n = IST.items.length;
+        if (!n) return;
+        i = (((Number(i) % n) + n) % n);
+        IST.i = i;
+        const it = IST.items[i],
+          u = IST.url[it.path] || "";
+        let o = document.querySelector(".ist-lb");
+        if (!o) {
+          o = document.createElement("div");
+          o.className = "ov ist-lb";
+          document.body.appendChild(o);
+          document.addEventListener("keydown", istKey);
+        }
+        o.innerHTML = `<div class="ist-lbc" style="text-align:center"><img src="${u}" alt=""><p class="mut" style="margin:8px 0">${esc(it.cap)}</p><div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px"><button class="btn gh sm" data-a="istnav" data-d="-1">‹</button><span class="mut">${i + 1} / ${n}</span><button class="btn gh sm" data-a="istnav" data-d="1">›</button><button class="btn sm" data-a="istdl">Descarcă</button><button class="btn gh sm" data-a="istlbx">Închide</button></div></div>`;
+      }
+      async function istDl(i) {
+        const it = IST.items[i],
+          u = it && IST.url[it.path];
+        if (!u) return;
+        try {
+          const b = await (await fetch(u)).blob(),
+            url = URL.createObjectURL(b),
+            a = document.createElement("a");
+          a.href = url;
+          a.download = it.name;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 2000);
+        } catch (e) {
+          toast("Descărcarea a eșuat.", 1);
+        }
+      }
+      async function ist(id) {
+        const [ev, et, lg, nr, pv] = await Promise.all([
+          sb
+            .from("asm_evenimente")
+            .select("*")
+            .eq("asm_produs_id", id)
+            .order("created_at"),
+          sb
+            .from("asm_etape")
+            .select("*")
+            .eq("asm_produs_id", id)
+            .order("started_at"),
+          sb.rpc("asm_logistic", { p_asm: id }),
+          sb
+            .from("asm_nereguli")
+            .select("*,asm_poze(*)")
+            .eq("asm_produs_id", id)
+            .order("created_at"),
+          sb.from("asm_produse").select("vin").eq("id", id).single(),
+        ]);
+        const nrx = istNereguli(
+          nr.data || [],
+          et.data || [],
+          (pv.data && pv.data.vin) || "produs",
+        );
+        const l = (lg.data || [])[0],
+          sit = !l
+            ? "În Depozit central / în flux"
+            : l.data_vanzare
+              ? "Vândut"
+              : l.status_linie === "trimis"
+                ? "Expediat către " +
+                  (l.magazin || "—") +
+                  (l.filiala ? " · " + l.filiala : "")
+                : "În Depozit central";
+        const o = document.createElement("div");
+        o.className = "ov";
+        o.innerHTML = `<div class="ist-m"><div class="row"><h3 style="margin:0">Istoric produs</h3><div><button class="btn gh sm" data-a="pdf" data-id="${id}">Fișă PDF</button> <button class="btn gh sm" data-a="close">Închide</button></div></div><p class="mut">Situație: <b>${esc(sit)}</b>${nrx.c ? ` · 📷 ${nrx.c} poze` : ""}</p>
+ <div class="ist-g${nrx.h ? "" : " s"}"><div><div class="tl">${(ev.data || []).map((x) => `<div>${dt(x.created_at)} · <b>${esc(EV[x.tip] || x.tip)}</b> · ${esc(nm(x.user_id))}${x.detalii ? ` <span class="mut">(${esc(x.detalii)})</span>` : ""}</div>`).join("") || "<div>Fără evenimente.</div>"}</div>
+ <h4>Durate etape</h4><div class="tl">${(et.data || []).map((x) => `<div>${x.tip} · ${esc(nm(x.user_id))} · ${x.ended_at ? dur(x.durata_sec * 1e3) + " (" + (x.rezultat || "") + ")" : "în curs"}</div>`).join("")}</div></div>${nrx.h ? `<div>${nrx.h}</div>` : ""}</div></div>`;
+        document.body.appendChild(o);
+        istInit(o);
+      }
+      async function fetchImgDataUrl(url) {
+        try {
+          const r = await fetch(url);
+          const b = await r.blob();
+          return await new Promise((res, rej) => {
+            const fr = new FileReader();
+            fr.onload = () => res(fr.result);
+            fr.onerror = rej;
+            fr.readAsDataURL(b);
+          });
+        } catch (e) {
+          return null;
+        }
+      }
+      function imgDims(u) {
+        return new Promise((res) => {
+          const im = new Image();
+          im.onload = () =>
+            res({ w: im.naturalWidth || 4, h: im.naturalHeight || 3 });
+          im.onerror = () => res({ w: 4, h: 3 });
+          im.src = u;
+        });
+      }
+      /* Antet firmă (imagine) pentru fișa PDF */
+      async function genereazaFisaPdf(asmId) {
+        toast("Se generează fișa PDF...");
+        try {
+          await loadJsPdf();
+        } catch {
+          return toast(
+            "Biblioteca PDF nu s-a încărcat. Verifică conexiunea și reîncearcă.",
+            1,
+          );
+        }
+        const [{ data: prod }, { data: etape }, lg] = await Promise.all([
+          sb.from("asm_produse").select("*").eq("id", asmId).single(),
+          sb
+            .from("asm_etape")
+            .select("*")
+            .eq("asm_produs_id", asmId)
+            .order("started_at"),
+          sb.rpc("asm_logistic", { p_asm: asmId }),
+        ]);
+        if (!prod) return toast("Produsul nu a fost găsit.", 1);
+        const etapeIds = (etape || []).map((e) => e.id),
+          etapaTip = new Map((etape || []).map((e) => [e.id, e.tip]));
+        const [{ data: rez }, { data: ner }] = await Promise.all([
+          etapeIds.length
+            ? sb
+                .from("asm_checklist_rezultate")
+                .select("*")
+                .in("etapa_id", etapeIds)
+                .order("ordine")
+            : Promise.resolve({ data: [] }),
+          sb
+            .from("asm_nereguli")
+            .select("*,asm_poze(*)")
+            .eq("asm_produs_id", asmId)
+            .order("created_at"),
+        ]);
+        const paths = (ner || []).flatMap((n) =>
+          n.asm_poze.map((x) => x.storage_path),
+        );
+        let urls = {};
+        if (paths.length) {
+          const { data } = await sb.storage
+            .from(B)
+            .createSignedUrls(paths, 3600);
+          (data || []).forEach((u) => (urls[u.path] = u.signedUrl));
+        }
+        const imgCache = {};
+        for (const path of paths) {
+          const u = urls[path];
+          if (!u) continue;
+          const d = await fetchImgDataUrl(u);
+          if (d) imgCache[path] = d;
+        }
+
+        const { jsPDF } = window.jspdf,
+          doc = new jsPDF({ unit: "mm", format: "a4" }),
+          PW = 210,
+          PH = 297,
+          MX = 12,
+          MT = 10,
+          MB = 14,
+          CW = PW - 2 * MX,
+          LR = 1280 / 800;
+        const FN = "RobotoRO";
+        doc.addFileToVFS("RobotoRO-Regular.ttf", FONT_REG);
+        doc.addFont("RobotoRO-Regular.ttf", FN, "normal");
+        doc.addFileToVFS("RobotoRO-Bold.ttf", FONT_BOLD);
+        doc.addFont("RobotoRO-Bold.ttf", FN, "bold");
+        doc.setFont(FN, "normal");
+        let y = MT;
+        const TL = {
+          asamblare: "Asamblare",
+          remediere: "Remediere",
+          ctc: "Verificare CTC",
+        };
+        const TLN = {
+          asamblare: "Din asamblare",
+          remediere: "Din remediere",
+          ctc: "Din CTC",
+        };
+        const font = (st, sz) => {
+          doc.setFont(FN, st);
+          doc.setFontSize(sz);
+        };
+        const ink = () => doc.setTextColor(15, 23, 42);
+        const gray = () => doc.setTextColor(100, 116, 139);
+        const thin = () => {
+          doc.setDrawColor(226, 231, 235);
+          doc.setLineWidth(0.2);
+        };
+        const black = (w) => {
+          doc.setDrawColor(0, 0, 0);
+          doc.setLineWidth(w);
+        };
+        const vinTxt = String(prod.vin || "—");
+        const contHeader = () => {
+          const w = 24;
+          doc.addImage(LOGO_ANTET, "JPEG", MX, MT, w, w / LR);
+          font("bold", 9);
+          ink();
+          doc.text(
+            `Fișă asamblare - ${prod.model || "—"} - ${vinTxt}`,
+            PW - MX,
+            MT + 5,
+            { align: "right" },
+          );
+          font("normal", 8);
+          gray();
+          doc.text("(continuare)", PW - MX, MT + 9.5, { align: "right" });
+          y = MT + w / LR + 3;
+          black(0.5);
+          doc.line(MX, y, PW - MX, y);
+          y += 4;
+        };
+        const ensure = (need) => {
+          if (y + need > PH - MB) {
+            doc.addPage();
+            contHeader();
+          }
+        };
+        const p = (t, size = 9) => {
+          font("normal", size);
+          ink();
+          const ls = doc.splitTextToSize(String(t), CW);
+          ensure(ls.length * 4 + 2);
+          doc.text(ls, MX, y + 3);
+          y += ls.length * 4 + 2;
+        };
+        let secN = 0;
+        const sec = (t, minBody = 12) => {
+          ensure(10 + minBody);
+          secN++;
+          font("bold", 9.5);
+          ink();
+          doc.text(`${secN}. ${t.toUpperCase()}`, MX, y + 3);
+          y += 5;
+          black(0.5);
+          doc.line(MX, y, PW - MX, y);
+          y += 4;
+        };
+
+        /* ===== Antet + titlu ===== */
+        doc.addImage(LOGO_ANTET, "JPEG", MX, MT, 48, 48 / LR);
+        font("normal", 8);
+        gray();
+        const _now = new Date();
+        doc.text(
+          `Generată de: ${nm(me.id)},  la data de: ${_now.toLocaleDateString("ro-RO", { day: "2-digit", month: "2-digit", year: "numeric" })}, ora: ${_now.toLocaleTimeString("ro-RO", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`,
+          PW - MX,
+          MT + 3,
+          { align: "right" },
+        );
+        y = MT + 48 / LR + 5;
+        const stTxt = String(
+          ST[prod.stadiu] || prod.stadiu || "—",
+        ).toUpperCase();
+        font("bold", 8.5);
+        const bw = Math.min(55, doc.getTextWidth(stTxt) + 7);
+        const titlu = `FIȘĂ ASAMBLARE - ${prod.model || "—"} - ${vinTxt}`;
+        let ts = 15;
+        font("bold", ts);
+        while (ts > 9 && doc.getTextWidth(titlu) > CW - bw - 4) {
+          ts -= 0.5;
+          font("bold", ts);
+        }
+        ink();
+        doc.text(titlu, MX, y + 5);
+        doc.setFillColor(15, 23, 42);
+        doc.roundedRect(PW - MX - bw, y, bw, 7, 1.2, 1.2, "F");
+        font("bold", 8.5);
+        doc.setTextColor(255, 255, 255);
+        doc.text(stTxt, PW - MX - bw / 2, y + 4.7, { align: "center" });
+        y += 10;
+        doc.setFillColor(0, 0, 0);
+        doc.rect(MX, y, CW, 1.2, "F");
+        y += 5;
+
+        /* ===== 1. Date produs (2 coloane) ===== */
+        sec("Date produs", 14);
+        const colW = (CW - 6) / 2,
+          X2 = MX + colW + 6;
+        const kv = (l, v, x, w) => {
+          font("bold", 9);
+          const lw = doc.getTextWidth(l + " ") + 0.5;
+          font("normal", 9);
+          const ls = doc.splitTextToSize(String(v), w - lw);
+          return {
+            h: ls.length * 4.2 + 1.2,
+            draw: (yy) => {
+              font("bold", 9);
+              ink();
+              doc.text(l, x, yy);
+              font("normal", 9);
+              doc.text(ls, x + lw, yy);
+            },
+          };
+        };
+        const l = (lg.data || [])[0],
+          sit = !l
+            ? "În Depozit central / în flux"
+            : l.data_vanzare
+              ? "Vândut"
+              : l.status_linie === "trimis"
+                ? "Expediat către " +
+                  (l.magazin || "—") +
+                  (l.filiala ? " - " + l.filiala : "")
+                : "În Depozit central";
+        const kvRows = [
+          [
+            ["VIN:", vinTxt],
+            ["Stadiu curent:", ST[prod.stadiu] || prod.stadiu || "—"],
+          ],
+          [
+            ["Model:", prod.model || "—"],
+            ["Remedieri:", String(prod.nr_remedieri ?? 0)],
+          ],
+          [
+            ["Culoare:", prod.culoare || "—"],
+            ["Situație logistică:", sit],
+          ],
+        ];
+        kvRows.forEach(([a, b]) => {
+          const ka = kv(a[0], a[1], MX, colW),
+            kb = kv(b[0], b[1], X2, colW),
+            rh = Math.max(ka.h, kb.h);
+          ensure(rh);
+          ka.draw(y + 3);
+          kb.draw(y + 3);
+          y += rh;
+        });
+        y += 3;
+
+        /* ===== 2. Traseu (tabel, fără durată) ===== */
+        sec("Traseu", 14);
+        if (!(etape || []).length) p("Nicio etapă înregistrată.");
+        else {
+          const cols = [
+            ["Etapă", 32],
+            ["Operator", 46],
+            ["Început", 34],
+            ["Sfârșit", 34],
+            ["Rezultat", 40],
+          ];
+          doc.setFillColor(241, 245, 249);
+          doc.rect(MX, y, CW, 5.6, "F");
+          font("bold", 8);
+          ink();
+          let cx = MX;
+          cols.forEach(([n, w]) => {
+            doc.text(n, cx + 1.5, y + 3.9);
+            cx += w;
+          });
+          y += 5.6;
+          for (const e of etape) {
+            const cells = [
+              TL[e.tip] || e.tip,
+              nm(e.user_id),
+              dt(e.started_at),
+              e.ended_at ? dt(e.ended_at) : "în curs",
+              e.rezultat || "—",
+            ];
+            font("normal", 8.5);
+            const wr = cells.map((c, i) =>
+              doc.splitTextToSize(String(c), cols[i][1] - 3),
+            );
+            const rh = Math.max(...wr.map((a) => a.length)) * 3.9 + 2.2;
+            font("normal", 8);
+            const nl = e.nota
+              ? doc.splitTextToSize("Notă: " + e.nota, CW - 3)
+              : null;
+            const nh = nl ? nl.length * 3.5 + 2.6 : 0;
+            ensure(rh + nh);
+            font("normal", 8.5);
+            ink();
+            cx = MX;
+            wr.forEach((a, i) => {
+              doc.text(a, cx + 1.5, y + 3.6);
+              cx += cols[i][1];
+            });
+            y += rh;
+            if (nl) {
+              font("normal", 8);
+              gray();
+              doc.text(nl, MX + 1.5, y + 2.2);
+              y += nh;
+            }
+            thin();
+            doc.line(MX, y, PW - MX, y);
+          }
+        }
+        y += 4;
+
+        /* ===== 3. Checklist (2 coloane) ===== */
+        sec("Checklist", 16);
+        const byEtapa = {};
+        (rez || []).forEach((r) => {
+          (byEtapa[r.etapa_id] = byEtapa[r.etapa_id] || []).push(r);
+        });
+        let vreunChecklist = false;
+        const cw2 = (CW - 6) / 2;
+        for (const e of etape || []) {
+          const rs = byEtapa[e.id] || [];
+          if (!rs.length) continue;
+          vreunChecklist = true;
+          ensure(14);
+          font("bold", 9);
+          ink();
+          doc.text(`${TL[e.tip] || e.tip} — ${dt(e.started_at)}`, MX, y + 3);
+          y += 5.2;
+          const half = Math.ceil(rs.length / 2),
+            L = rs.slice(0, half),
+            R = rs.slice(half);
+          const wrap = (r) => {
+            font("normal", 8.5);
+            return r
+              ? doc.splitTextToSize(String(r.text_criteriu || ""), cw2 - 9)
+              : [];
+          };
+          for (let i = 0; i < half; i++) {
+            const a = L[i],
+              b = R[i],
+              la = wrap(a),
+              lb = wrap(b),
+              rh = Math.max(la.length, lb.length, 1) * 3.8 + 1.4;
+            ensure(rh);
+            [
+              [a, la, MX],
+              [b, lb, X2],
+            ].forEach(([r, ls, x]) => {
+              if (!r) return;
+              const ok = r.rezultat === "ok";
+              font("bold", 8);
+              if (ok) doc.setTextColor(22, 128, 61);
+              else doc.setTextColor(185, 28, 28);
+              doc.text(ok ? "OK" : "NOK", x, y + 3);
+              font("normal", 8.5);
+              ink();
+              doc.text(ls, x + 9, y + 3);
+            });
+            y += rh;
+          }
+          y += 1.5;
+        }
+        if (!vreunChecklist) p("Fără rezultate de checklist înregistrate.");
+        y += 3;
+
+        /* ===== 4. Nereguli constatate ===== */
+        sec("Nereguli constatate", (ner || []).length ? 55 : 14);
+        if (!(ner || []).length) p("Nicio neregulă înregistrată.");
+        const PS = 26,
+          PG = 2;
+        for (const n of ner || []) {
+          const tip = TLN[etapaTip.get(n.etapa_id)] || "",
+            tt = `${tip}${tip ? " — " : ""}${n.criteriu_text || "În afara checklist-ului"}`,
+            rem = n.status === "remediata";
+          font("bold", 9);
+          const tl = doc.splitTextToSize(tt, CW - 28);
+          font("normal", 8.5);
+          const dl = doc.splitTextToSize(n.descriere || "—", CW);
+          const sTxt = rem
+            ? `Remediată${n.remediata_de ? " de " + nm(n.remediata_de) : ""}${n.remediata_la ? " la " + dt(n.remediata_la) : ""}${n.nota_remediere ? " — notă: " + n.nota_remediere : ""}`
+            : "";
+          font("normal", 8);
+          const sl = sTxt ? doc.splitTextToSize(sTxt, CW) : [];
+          const bef = n.asm_poze.filter(
+              (x) => x.tip === "inainte" && imgCache[x.storage_path],
+            ),
+            aft = n.asm_poze.filter(
+              (x) => x.tip === "dupa" && imgCache[x.storage_path],
+            ),
+            rows = Math.ceil(Math.max(bef.length, aft.length) / 3);
+          const textH = tl.length * 3.9 + dl.length * 3.8 + sl.length * 3.5 + 3;
+          ensure(textH + (rows ? 4 + PS + PG : 0));
+          font("bold", 9);
+          ink();
+          doc.text(tl, MX, y + 3);
+          font("bold", 8);
+          if (rem) doc.setTextColor(22, 128, 61);
+          else doc.setTextColor(185, 28, 28);
+          doc.text(rem ? "REMEDIATĂ" : "DESCHISĂ", PW - MX, y + 3, {
+            align: "right",
+          });
+          y += tl.length * 3.9 + 1.2;
+          font("normal", 8.5);
+          ink();
+          doc.text(dl, MX, y + 3);
+          y += dl.length * 3.8 + 0.6;
+          if (sl.length) {
+            font("normal", 8);
+            gray();
+            doc.text(sl, MX, y + 3);
+            y += sl.length * 3.5 + 1.5;
+          }
+          if (rows) {
+            font("normal", 8);
+            gray();
+            if (bef.length) doc.text("Înainte", MX, y + 2.5);
+            if (aft.length) doc.text("După", MX + colW + 6, y + 2.5);
+            y += 4;
+            for (let r = 0; r < rows; r++) {
+              ensure(PS + PG);
+              for (const [arr, bx] of [
+                [bef, MX],
+                [aft, MX + colW + 6],
+              ]) {
+                for (let k = 0; k < 3; k++) {
+                  const ph = arr[r * 3 + k];
+                  if (!ph) continue;
+                  const d = imgCache[ph.storage_path];
+                  try {
+                    const dm = await imgDims(d);
+                    let w = PS,
+                      hh = (w * dm.h) / dm.w;
+                    if (hh > PS) {
+                      hh = PS;
+                      w = (hh * dm.w) / dm.h;
+                    }
+                    doc.addImage(d, "JPEG", bx + k * (PS + PG), y, w, hh);
+                  } catch (er) {}
+                }
+              }
+              y += PS + PG;
+            }
+          }
+          y += 1;
+          thin();
+          doc.line(MX, y, PW - MX, y);
+          y += 3;
+        }
+
+        /* ===== Subsol: numerotare pagini ===== */
+        const np = doc.getNumberOfPages();
+        for (let i = 1; i <= np; i++) {
+          doc.setPage(i);
+          thin();
+          doc.line(MX, PH - 10, PW - MX, PH - 10);
+          font("normal", 8);
+          gray();
+          doc.text("GEELI GENERATION ELECTRIC SRL", MX, PH - 6.5);
+          doc.text(`Pagina ${i}/${np}`, PW - MX, PH - 6.5, { align: "right" });
+        }
+
+        doc.save(
+          `fisa-asamblare-${String(prod.vin || asmId).replace(/[^a-zA-Z0-9-]/g, "")}.pdf`,
+        );
+      }
+      async function vCheck(c) {
+        const { data } = await sb
+            .from("asm_checklist_sabloane")
+            .select("*")
+            .order("model_key", { nullsFirst: true })
+            .order("ordine"),
+          d = data || [];
+        const asmR = d.filter((x) => x.tip === "asamblare"),
+          ctcR = d.filter((x) => x.tip === "ctc");
+        const groups = [];
+        asmR.forEach((x) => {
+          const k = x.model_key || "";
+          if (!groups.some((g) => g.key === k))
+            groups.push({
+              key: k,
+              model: x.model,
+              rows: asmR.filter((y) => (y.model_key || "") === k),
+            });
+        });
+        const row = (x, showModel) =>
+          `<div class="crit-row"><input type="number" data-c="sab" data-f="ordine" data-id="${x.id}" value="${x.ordine}">${showModel ? `<input data-c="sab" data-f="model" data-id="${x.id}" value="${esc(x.model || "")}" placeholder="Model" list="dl-modele" autocomplete="off">` : ""}<input data-c="sab" data-f="text" data-id="${x.id}" value="${esc(x.text)}"><label><input type="checkbox" data-c="sab" data-f="activ" data-id="${x.id}" ${x.activ ? "checked" : ""}> activ</label><button class="btn gh sm" data-a="delsab" data-id="${x.id}" title="Șterge (istoricul rămâne)">✕</button></div>`;
+        c.innerHTML = `<div class="card"><h3 style="margin-top:0">Criterii asamblare — pe model</h3>
+ <div class="add-row">
+   <input id="nm-asamblare" list="dl-modele" placeholder="Model..." value="${esc(ultimulModel)}" autocomplete="off">
+   <input id="ns-asamblare" list="dl-crit-asamblare" placeholder="Criteriu nou..." autocomplete="off">
+   <button type="button" class="btn gh sm" id="btn-imp-crit" title="Importă criterii din Excel/CSV (rândul 1 = antet, se ignoră)">📊</button>
+   <input type="file" id="file-imp-crit" accept=".xlsx,.xls,.csv" style="display:none">
+   <button class="btn" data-a="addsab" data-t="asamblare">Adaugă</button>
+ </div>
+ ${
+   groups
+     .map((g) => {
+       const open = modeleExpandate.has(g.key);
+       return `<div style="border-top:1px solid var(--line);padding-top:6px;margin-top:6px">
+   <div class="row" style="margin-bottom:4px"><h4 style="margin:0"><button class="model-toggle" data-a="togmodel" data-key="${esc(g.key)}" title="${open ? "Restrânge" : "Expandează"}">${open ? "−" : "+"}</button>${g.key ? esc(g.model) : '<span class="mut">Fără model — completează câmpul „Model" pe fiecare rând ca să se aplice</span>'}</h4>${g.key ? `<button class="btn gh sm" data-a="dupmodel" data-key="${esc(g.key)}">Copiază la alt model</button>` : ""}</div>
+   ${open ? g.rows.map((x) => row(x, true)).join("") : ""}
+ </div>`;
+     })
+     .join("") || '<div class="mut">Niciun criteriu de asamblare încă.</div>'
+ }
+ </div>
+ <div class="card"><h3 style="margin-top:0">Criterii CTC</h3>
+ <div class="add-row">
+   <input id="ns-ctc" list="dl-crit-ctc" placeholder="Criteriu nou..." autocomplete="off">
+   <button class="btn" data-a="addsab" data-t="ctc">Adaugă</button>
+ </div>
+ <button class="model-toggle" data-a="togctc" style="display:block;margin:2px 0 8px" title="${ctcExpandat ? "Restrânge" : "Expandează"}">${ctcExpandat ? "− Criterii" : "+ Criterii"}</button>
+ ${ctcExpandat ? ctcR.map((x) => row(x, false)).join("") || '<div class="mut">Niciun criteriu.</div>' : ""}
+ </div>
+ <datalist id="dl-modele"></datalist>
+ <datalist id="dl-crit-asamblare">${[
+   ...new Set(asmR.map((x) => x.text.trim()).filter(Boolean)),
+ ]
+   .sort((a, b) => a.localeCompare(b, "ro"))
+   .map((t) => `<option value="${esc(t)}">`)
+   .join("")}</datalist>
+ <datalist id="dl-crit-ctc">${[
+   ...new Set(ctcR.map((x) => x.text.trim()).filter(Boolean)),
+ ]
+   .sort((a, b) => a.localeCompare(b, "ro"))
+   .map((t) => `<option value="${esc(t)}">`)
+   .join("")}</datalist>
+ <div class="mut">Modificările se aplică fișelor deschise ulterior. Rezultatele deja salvate păstrează textul criteriului de la data verificării.</div>`;
+        refreshModeleDatalist("");
+        $("#btn-imp-crit").onclick = () => $("#file-imp-crit").click();
+        $("#file-imp-crit").onchange = (e) =>
+          handleImportCriterii(e.target.files[0]);
+      }
+      let dlModeleT;
+      function parseCSVFirstCol(text) {
+        return text
+          .split(/\r\n|\n|\r/)
+          .filter((l) => l.length)
+          .map((line) => {
+            if (line[0] === '"') {
+              let i = 1,
+                out = "";
+              while (i < line.length) {
+                if (line[i] === '"' && line[i + 1] === '"') {
+                  out += '"';
+                  i += 2;
+                } else if (line[i] === '"') {
+                  i++;
+                  break;
+                } else {
+                  out += line[i];
+                  i++;
+                }
+              }
+              return out.trim();
+            }
+            const idx = line.indexOf(",");
+            return (idx === -1 ? line : line.slice(0, idx)).trim();
+          });
+      }
+      async function parseCriteriiFile(file) {
+        const ext = (file.name.split(".").pop() || "").toLowerCase();
+        if (ext === "csv") {
+          const text = await file.text();
+          return parseCSVFirstCol(text).slice(1);
+        }
+        const buf = await file.arrayBuffer();
+        await loadExcelJS();
+        const wb = new ExcelJS.Workbook();
+        await wb.xlsx.load(buf);
+        const ws = wb.worksheets[0];
+        if (!ws) return [];
+        const out = [];
+        ws.eachRow((row) => {
+          const v = row.getCell(1).value;
+          out.push(
+            v == null
+              ? ""
+              : typeof v === "object" && v.text
+                ? String(v.text).trim()
+                : String(v).trim(),
+          );
+        });
+        return out.slice(1);
+      }
+      async function handleImportCriterii(file) {
+        if (!file) return;
+        const model = $("#nm-asamblare").value.trim();
+        const fi = $("#file-imp-crit");
+        if (!model) {
+          if (fi) fi.value = "";
+          return toast("Completează modelul pentru acest criteriu.", 1);
+        }
+        let rows;
+        try {
+          rows = await parseCriteriiFile(file);
+        } catch {
+          if (fi) fi.value = "";
+          return toast(
+            "Fișierul nu a putut fi citit. Salvează-l ca .xlsx sau .csv și încearcă din nou.",
+            1,
+          );
+        }
+        if (fi) fi.value = "";
+        const texte = [
+          ...new Set(rows.map((t) => (t || "").trim()).filter(Boolean)),
+        ];
+        if (!texte.length)
+          return toast("Nu am găsit niciun criteriu în fișier.", 1);
+        const mk = modelKey(model);
+        const { data: exist } = await sb
+          .from("asm_checklist_sabloane")
+          .select("text")
+          .eq("tip", "asamblare")
+          .eq("model_key", mk);
+        const existSet = new Set(
+          (exist || []).map((x) => x.text.trim().toLowerCase()),
+        );
+        showImportPreview(model, texte, existSet);
+      }
+      function showImportPreview(model, texte, existSet) {
+        const items = texte.map((t, i) => ({
+          i,
+          t,
+          dup: existSet.has(t.toLowerCase()),
+        }));
+        const noi = items.filter((x) => !x.dup).length;
+        const o = document.createElement("div");
+        o.className = "ov";
+        o.innerHTML = `<div><div class="row"><h3 style="margin:0">Import criterii — ${esc(model)}</h3><button class="btn gh sm" data-a="close">Închide</button></div>
+ <p class="mut">${items.length} criterii găsite în fișier${items.length - noi ? `, ${items.length - noi} deja existente la acest model (marcate, neimportabile)` : ""}.</p>
+ <div class="tl" style="max-height:50vh;overflow-y:auto">${items
+   .map(
+     (x) =>
+       `<div><label style="display:flex;align-items:center;gap:8px${x.dup ? ";opacity:.5" : ""}"><input type="checkbox" data-imp-chk data-i="${x.i}" ${x.dup ? "disabled" : "checked"} style="width:auto"><span>${esc(x.t)}${x.dup ? ' <span class="mut">(există deja)</span>' : ""}</span></label></div>`,
+   )
+   .join("")}</div>
+ <div class="foot"><button class="btn gh" data-a="close">Anulează</button><button class="btn" id="btn-conf-imp">Importă (${noi})</button></div></div>`;
+        document.body.appendChild(o);
+        const updateCount = () => {
+          const n = o.querySelectorAll("[data-imp-chk]:checked").length;
+          const b = $("#btn-conf-imp");
+          b.textContent = `Importă (${n})`;
+          b.disabled = !n;
+        };
+        o.querySelectorAll("[data-imp-chk]").forEach(
+          (cb) => (cb.onchange = updateCount),
+        );
+        $("#btn-conf-imp").onclick = async () => {
+          const alese = items
+            .filter((x) => !x.dup)
+            .filter(
+              (x) => o.querySelector(`[data-imp-chk][data-i="${x.i}"]`).checked,
+            )
+            .map((x) => x.t);
+          if (!alese.length) return;
+          await confirmaImportCriterii(model, alese);
+          o.remove();
+        };
+      }
+      async function confirmaImportCriterii(model, texte) {
+        const mk = modelKey(model);
+        const { data: ex } = await sb
+          .from("asm_checklist_sabloane")
+          .select("ordine")
+          .eq("tip", "asamblare")
+          .eq("model_key", mk);
+        let next = Math.max(0, ...(ex || []).map((x) => x.ordine));
+        const rows = texte.map((t) => ({
+          tip: "asamblare",
+          model,
+          text: t,
+          ordine: ++next,
+        }));
+        const r = await sb.from("asm_checklist_sabloane").insert(rows);
+        if (r.error) return toast(r.error.message, 1);
+        ultimulModel = model;
+        modeleExpandate.add(mk);
+        toast(`${rows.length} criterii importate la modelul „${model}".`);
+        go("checklist");
+      }
+      async function refreshModeleDatalist(q) {
+        let data = null;
+        try {
+          const res = await sb.rpc("asm_modele_antedepozit", { p_q: q });
+          data = res.data;
+          if (res.error) console.error(res.error);
+        } catch (err) {
+          console.error(err);
+        }
+        const dl = $("#dl-modele");
+        if (dl)
+          dl.innerHTML = (data || [])
+            .map((r) => `<option value="${esc(r.model)}">`)
+            .join("");
+      }
+      document.addEventListener("input", (e) => {
+        if (
+          e.target.getAttribute &&
+          e.target.getAttribute("list") === "dl-modele"
+        ) {
+          clearTimeout(dlModeleT);
+          const val = e.target.value;
+          dlModeleT = setTimeout(() => refreshModeleDatalist(val), 250);
+        }
+      });
+      function vSet(c) {
+        const f = (k, l, ty = "number") =>
+          `<div style="margin-bottom:10px"><div class="mut">${l}</div>${ty === "checkbox" ? `<input type="checkbox" style="width:auto" data-c="set" data-f="${k}" ${S[k] ? "checked" : ""}>` : `<input type="number" min="1" data-c="set" data-f="${k}" value="${S[k]}">`}</div>`;
+        c.innerHTML = `<div class="card" style="max-width:420px">${f("max_in_lucru", "Produse simultane per utilizator")}${f("prag_alerta_ore", "Alertă produs în lucru (ore)")}${f("poze_obligatorii", "Poză obligatorie la fiecare neregulă", "checkbox")}</div>`;
+      }
+      boot0();
+    </script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker
+            .register("./sw.js")
+            .then((reg) => console.log("Service Worker înregistrat cu succes!"))
+            .catch((err) =>
+              console.error("Eroare la înregistrarea Service Worker:", err),
+            );
+        });
+      }
+    </script>
+  </body>
+</html>
