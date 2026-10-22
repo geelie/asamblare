@@ -630,6 +630,61 @@
         padding: 10px 14px;
         margin-bottom: 12px;
       }
+      .kpis.cmp {
+        grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+        gap: 6px;
+        margin-bottom: 6px;
+      }
+      .kpis.cmp .kpi {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 8px;
+        padding: 4px 10px;
+        box-shadow: none;
+      }
+      .kpis.cmp .kpi b {
+        display: inline;
+        margin: 0;
+        font-size: 15px;
+      }
+      #stLate .al,
+      #stLateAmb .al {
+        font-size: 10.5px;
+        line-height: 1.3;
+        padding: 3px 10px;
+        margin-bottom: 6px;
+        border-radius: 8px;
+      }
+      #c.fill {
+        display: flex;
+        flex-direction: column;
+        box-sizing: border-box;
+        padding-top: 8px;
+        padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+      }
+      #c.fill > .fillcard {
+        flex: 1 1 auto;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 0;
+      }
+      #c.fill .fillcard .wrap {
+        flex: 1 1 auto;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+      }
+      #c.fill .fillcard .list-scroll {
+        flex: 1 1 auto;
+        min-height: 0;
+        max-height: none !important;
+      }
+      #c.fill .fillcard .pg-bar {
+        flex: 0 0 auto;
+        margin-top: 6px;
+      }
       .wrap {
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
@@ -1005,6 +1060,9 @@
       header .who .role-asm_ctc {
         color: #38bdf8;
       }
+      header .who .role-asm_ambalare {
+        color: #c084fc;
+      }
       header .who .role-asm_admin {
         color: #2dd4bf;
       }
@@ -1163,6 +1221,7 @@
         asm_operator: "Asamblare",
         asm_remediere: "Remediere",
         asm_ctc: "CTC",
+        asm_ambalare: "Ambalare",
         asm_admin: "Admin asamblare",
         superadmin: "Super Admin",
       };
@@ -1186,6 +1245,7 @@
           ["ctc", "De verificat"],
           ["lucru", "În lucru"],
         ],
+        asm_ambalare: [["ambalare", "În ambalare"]],
         asm_admin: ADM,
         superadmin: ADM,
       };
@@ -1207,6 +1267,12 @@
         ctc_avizat: "Aviz CTC acordat",
         eliberat_de_admin: "Eliberat de admin",
         aviz_revocat: "Aviz revocat",
+        ambalare_marcata: "Marcat „De ambalat”",
+        ambalare_inceputa: "Ambalare începută (vizibil ambalatorului)",
+        ambalare_suspendata: "Ambalare suspendată (aviz retras)",
+        ambalare_finalizata: "Ambalare finalizată",
+        ambalare_retrimisa_ctc: "Retrimis la CTC din ambalare",
+        ambalare_anulata: "Ambalare anulată",
       };
       let me = null,
         tab = null,
@@ -1468,7 +1534,14 @@
             () => {
               if (
                 !F &&
-                ["lucru", "remediat", "ctc", "prioritare", "stadii"].includes(tab) &&
+                [
+                  "lucru",
+                  "remediat",
+                  "ctc",
+                  "prioritare",
+                  "stadii",
+                  "ambalare",
+                ].includes(tab) &&
                 !document.querySelector(".ov")
               ) {
                 clearTimeout(rt._d);
@@ -1515,6 +1588,7 @@
         ctc: vCtc,
         prioritare: vPrioritare,
         stadii: vStadii,
+        ambalare: vAmbalare,
         checklist: vCheck,
         statistici: vStatistici,
         setari: vSet,
@@ -1538,6 +1612,7 @@
         document
           .querySelectorAll("nav button")
           .forEach((b) => b.classList.toggle("on", b.dataset.t === t));
+        fillMain(["stadii", "statistici"].includes(t));
         V[t]($("#c")).then?.(fitListScroll);
         fitListScroll();
       }
@@ -1565,6 +1640,13 @@
         },
         kpi: (d) => {
           stF = stF === d.s ? "" : d.s;
+          ambF = "";
+          stPage = 1;
+          go("stadii");
+        },
+        kpia: (d) => {
+          ambF = ambF === d.s ? "" : d.s;
+          stF = "";
           stPage = 1;
           go("stadii");
         },
@@ -1572,6 +1654,31 @@
         ner: (d) => addNer(d.c || null),
         rmner: (d) => rmNer(d.id),
         back: () => go(tab),
+        amb: (d) => fisaAmb(d.id),
+        ambfin: async () => {
+          await rpc("asm_ambalare_finalizeaza", {
+            p_asm: F.amb.id,
+            p_nota: $("#an")?.value || null,
+          });
+          toast("Ambalare finalizată.");
+          go(tab);
+        },
+        ambret: async () => {
+          const m = prompt("Motiv retrimitere la CTC (obligatoriu):");
+          if (!m || !m.trim()) return;
+          await rpc("asm_ambalare_retrimite_ctc", {
+            p_asm: F.amb.id,
+            p_motiv: m,
+          });
+          toast("Produsul a fost retrimis la CTC.");
+          go(tab);
+        },
+        ambanul: async (d) => {
+          const m = prompt("Motiv anulare ambalare (opțional):");
+          if (m === null) return;
+          await rpc("ambalare_anuleaza", { p_asm: d.id, p_motiv: m || null });
+          go(tab);
+        },
         fin: async () => {
           await rpc(
             F.e.tip === "ctc"
@@ -1799,7 +1906,7 @@
       }
       /* Coloanele necesare listelor de produse (verificate pe schema din baza de date) */
       const PL_COLS =
-        "id,vin,model,culoare,stadiu,operator_curent,updated_at,nr_remedieri,sursa_remediere,ctc_solicitat_la,ctc_solicitat_de,ctc_solicitat_de_nume";
+        "id,vin,model,culoare,stadiu,operator_curent,updated_at,nr_remedieri,sursa_remediere,ctc_solicitat_la,ctc_solicitat_de,ctc_solicitat_de_nume,ambalare_stare,ambalare_start,ambalare_marcat_de_nume,ctc_motiv_ambalare";
 
       /* ---------- Utilitare pentru volume mari ---------- */
       const PAGE_MAX = 1000; /* limita implicită Supabase/PostgREST pe un răspuns */
@@ -1811,18 +1918,23 @@
           const { data, error } = await mk(from, from + PAGE_MAX - 1);
           if (error) throw error;
           rows.push(...(data || []));
-          if (!data || data.length < PAGE_MAX) return { rows, truncated: false };
+          if (!data || data.length < PAGE_MAX)
+            return { rows, truncated: false };
         }
         return { rows, truncated: true };
       }
       /* .in("col", ids) cu liste lungi depășește lungimea URL-ului: se sparge în pachete. */
       async function inChunks(ids, mk, size = 100) {
         const parts = [];
-        for (let i = 0; i < ids.length; i += size) parts.push(ids.slice(i, i + size));
+        for (let i = 0; i < ids.length; i += size)
+          parts.push(ids.slice(i, i + size));
         const res = await Promise.all(parts.map(mk));
         return res.flatMap((r) => r.data || []);
       }
-      const likeSafe = (q) => String(q || "").trim().replace(/[%_\\]/g, "");
+      const likeSafe = (q) =>
+        String(q || "")
+          .trim()
+          .replace(/[%_\\]/g, "");
       const debounce = (fn, ms = 300) => {
         let t;
         return (...a) => {
@@ -1862,7 +1974,7 @@
             all
               .map(
                 (p) =>
-                  `<div class="card row"><div>${prodTxt(p)}<div class="mut">de ${dur(Date.now() - new Date(p.updated_at))}${p.nr_remedieri ? ` · reverificare (remediat de ${p.nr_remedieri}×)` : ""}${extra && p.sursa_remediere ? ` · sursa: ${p.sursa_remediere}` : ""}</div></div><button class="btn" data-a="${btn}" data-id="${p.id}">${lbl}</button></div>`,
+                  `<div class="card row"><div>${prodTxt(p)}<div class="mut">de ${dur(Date.now() - new Date(p.updated_at))}${p.nr_remedieri ? ` · reverificare (remediat de ${p.nr_remedieri}×)` : ""}${extra && p.sursa_remediere ? ` · sursa: ${p.sursa_remediere}` : ""}${p.ctc_motiv_ambalare ? `<div><b>Retrimis din ambalare:</b> ${esc(p.ctc_motiv_ambalare)}</div>` : ""}</div></div><button class="btn" data-a="${btn}" data-id="${p.id}">${lbl}</button></div>`,
               )
               .join("") ||
             '<div class="mut">Niciun produs în această listă.</div>';
@@ -1913,7 +2025,7 @@
           (all
             .map(
               (p) =>
-                `<div class="card row"><div>${prodTxt(p)}<div class="mut"><span class="pill p-in_remediere">Prioritar</span> Cerut de ${esc(p.ctc_solicitat_de_nume || nm(p.ctc_solicitat_de))} la ${new Date(p.ctc_solicitat_la).toLocaleString("ro-RO", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}${p.nr_remedieri ? ` · reverificare (remediat de ${p.nr_remedieri}×)` : ""}</div></div><button class="btn" data-a="pctc" data-id="${p.id}">Preia pentru verificare CTC</button></div>`,
+                `<div class="card row"><div>${prodTxt(p)}<div class="mut"><span class="pill p-in_remediere">Prioritar</span> Cerut de ${esc(p.ctc_solicitat_de_nume || nm(p.ctc_solicitat_de))} la ${new Date(p.ctc_solicitat_la).toLocaleString("ro-RO", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}${p.nr_remedieri ? ` · reverificare (remediat de ${p.nr_remedieri}×)` : ""}${p.ctc_motiv_ambalare ? `<div><b>Retrimis din ambalare:</b> ${esc(p.ctc_motiv_ambalare)}</div>` : ""}</div></div><button class="btn" data-a="pctc" data-id="${p.id}">Preia pentru verificare CTC</button></div>`,
             )
             .join("") ||
             '<div class="mut">Nicio solicitare prioritară în acest moment.</div>') +
@@ -1996,7 +2108,7 @@
         const { e, p } = F;
         const prev = F.ner.filter((n) => n.etapa_id !== e.id);
         $("#c").innerHTML =
-          `<div class="card"><div class="row"><div>${prodTxt(p)}<div class="mut">${e.tip === "ctc" ? "Verificare CTC" : "Asamblare"} · început ${dt(e.started_at)}</div></div>${e.tip === "ctc" ? "" : '<div style="text-align:right"><div class="timer" id="tm"></div><div class="mut">de la preluare</div></div>'}</div></div>
+          `<div class="card"><div class="row"><div>${prodTxt(p)}<div class="mut">${e.tip === "ctc" ? "Verificare CTC" : "Asamblare"} · început ${dt(e.started_at)}${e.tip === "ctc" && p.ctc_motiv_ambalare ? `<div><b>Retrimis din ambalare:</b> ${esc(p.ctc_motiv_ambalare)}</div>` : ""}</div></div>${e.tip === "ctc" ? "" : '<div style="text-align:right"><div class="timer" id="tm"></div><div class="mut">de la preluare</div></div>'}</div></div>
  ${e.tip === "ctc" && prev.length ? `<div class="al"><b>Reverificare</b> – defecte raportate anterior:<br>${prev.map((n) => "• " + esc(n.criteriu_text ? n.criteriu_text + ": " : "") + esc(n.descriere) + (n.status === "remediata" ? " ✔ remediat" : "")).join("<br>")}</div>` : ""}
  ${F.sab.length ? "" : '<div class="al">Nu există criterii de checklist definite. Un Admin trebuie să le adauge din tabul „Checklist".</div>'}
  ${F.sab
@@ -2163,15 +2275,140 @@
         clearInterval(tmr);
       }
 
+      /* ---------- AMBALARE ---------- */
+      const AMB_ST = {
+        marcat: ["De ambalat", "#ede9fe", "#6d28d9"],
+        in_ambalare: ["În ambalare", "#ffedd5", "#c2410c"],
+        ambalat: ["Ambalat", "#ccfbf1", "#0f766e"],
+      };
+      const esteAdm = () => ["asm_admin", "superadmin"].includes(me.role);
+      const ambPill = (p) => {
+        const a = AMB_ST[p.ambalare_stare];
+        if (!a) return "";
+        const x =
+          esteAdm() && ["marcat", "in_ambalare"].includes(p.ambalare_stare)
+            ? ` <button class="btn gh sm" data-a="ambanul" data-id="${p.id}" title="Anulează ambalarea">✕</button>`
+            : "";
+        return ` <span class="pill" style="background:${a[1]};color:${a[2]}">${a[0]}</span>${x}`;
+      };
+      async function vAmbalare(c) {
+        const STEP = 50;
+        if (!listLim.amb) listLim.amb = STEP;
+        c.innerHTML = `<div id="ambInfo" class="mut" style="margin-bottom:8px"></div><div class="card"><input id="lq" placeholder="Caută VIN (parțial, minim 3 caractere)..." value="${esc(listQ.amb || "")}" style="max-width:300px;margin-bottom:8px" autocomplete="off"><div id="lst" class="list-scroll"></div><div id="lmore" style="margin-top:6px"></div></div>`;
+        if (esteAdm())
+          sb.from("asm_produse")
+            .select("id", { count: "exact", head: true })
+            .eq("ambalare_stare", "marcat")
+            .then(({ count }) => {
+              const el = $("#ambInfo");
+              if (el)
+                el.textContent = `Marcate „De ambalat”, în așteptarea avizului CTC: ${count ?? 0}`;
+            });
+        let seq = 0;
+        const load = async () => {
+          const my = ++seq,
+            q = likeSafe(listQ.amb);
+          let r = sb
+            .from("asm_produse")
+            .select(PL_COLS, { count: "exact" })
+            .eq("ambalare_stare", "in_ambalare");
+          if (q.length >= 3) r = r.ilike("vin", `%${q}%`);
+          const { data, count, error } = await r
+            .order("ambalare_start")
+            .order("id")
+            .limit(listLim.amb);
+          if (my !== seq || !$("#lst")) return;
+          if (error) {
+            $("#lst").innerHTML =
+              '<div class="mut">Eroare la încărcarea listei. Reîncearcă.</div>';
+            return;
+          }
+          const all = data || [],
+            total = count ?? all.length;
+          $("#lst").innerHTML =
+            all
+              .map(
+                (p) =>
+                  `<div class="card row"><div>${prodTxt(p)}<div class="mut">în ambalare de <b class="ambt" data-t="${p.ambalare_start}">${dur(Date.now() - new Date(p.ambalare_start))}</b>${p.ambalare_marcat_de_nume ? ` · cerut de ${esc(p.ambalare_marcat_de_nume)}` : ""}</div></div><div>${esteAdm() ? `<button class="btn gh sm" data-a="ambanul" data-id="${p.id}">Anulează</button> ` : ""}<button class="btn" data-a="amb" data-id="${p.id}">Deschide</button></div></div>`,
+              )
+              .join("") ||
+            '<div class="mut">Niciun produs de ambalat în acest moment.</div>';
+          $("#lmore").innerHTML =
+            total > all.length
+              ? `<span class="mut">Afișate ${all.length} din ${total}. </span>${all.length < PAGE_MAX ? '<button class="btn gh sm" id="lmoreBtn">Arată încă ' + STEP + "</button>" : ""}`
+              : total
+                ? `<span class="mut">${total} produse</span>`
+                : "";
+          const mb = $("#lmoreBtn");
+          if (mb)
+            mb.onclick = () => {
+              listLim.amb = Math.min(PAGE_MAX, listLim.amb + STEP);
+              load();
+            };
+          fitListScroll();
+        };
+        $("#lq").oninput = debounce((e) => {
+          listQ.amb = e.target.value;
+          listLim.amb = STEP;
+          load();
+        });
+        clearInterval(tmr);
+        tmr = setInterval(
+          () =>
+            document
+              .querySelectorAll(".ambt")
+              .forEach(
+                (el) =>
+                  (el.textContent = dur(Date.now() - new Date(el.dataset.t))),
+              ),
+          3e4,
+        );
+        await load();
+      }
+      async function fisaAmb(id) {
+        const { data: p } = await sb
+          .from("asm_produse")
+          .select(PL_COLS)
+          .eq("id", id)
+          .single();
+        if (!p || p.ambalare_stare !== "in_ambalare") {
+          toast("Produsul nu mai este în ambalare.", 1);
+          return go(tab);
+        }
+        F = { amb: p };
+        $("#c").innerHTML =
+          `<div class="card"><div class="row"><div>${prodTxt(p)}<div class="mut">Ambalare · apărut ${dt(p.ambalare_start)}</div></div><div style="text-align:right"><div class="timer" id="tm"></div><div class="mut">de la apariție</div></div></div></div><div class="card"><textarea id="an" placeholder="Notă (opțional)"></textarea></div><div class="foot"><div><button class="btn gh" data-a="back">← Înapoi</button> <button class="btn gh" data-a="ambret">Retrimite la CTC</button></div><button class="btn" data-a="ambfin">Finalizează ambalarea</button></div>`;
+        clearInterval(tmr);
+        const f = (n) => String(n).padStart(2, "0"),
+          tk = () => {
+            const el = $("#tm");
+            if (!el) return;
+            const t = Math.max(
+              0,
+              Math.floor((Date.now() - new Date(p.ambalare_start)) / 1e3),
+            );
+            el.textContent =
+              f((t / 3600) | 0) +
+              ":" +
+              f(((t / 60) % 60) | 0) +
+              ":" +
+              f(t % 60);
+          };
+        tk();
+        tmr = setInterval(tk, 1e3);
+      }
+
       /* ---------- ADMIN ---------- */
       let stF = "",
         stQ = "",
+        ambF = "",
         stPage = 1;
       const PER_PAGE = 30;
       const TIP_ACT = {
         asamblare: "Asamblare",
         remediere: "Remediere",
         ctc: "CTC",
+        ambalare: "Ambalare",
       };
       let staDe = "",
         staPana = "",
@@ -2187,21 +2424,24 @@
         staOperatori = [],
         staFiltered = [];
       async function vStadii(c) {
-        c.innerHTML = `<div id="stLate"></div>
- <div class="kpis" id="stKpis">${Object.keys(ST)
+        c.innerHTML = `<div id="stLate"></div><div id="stLateAmb"></div>
+ <div class="kpis cmp" id="stKpis">${Object.keys(ST)
    .map(
      (k) =>
        `<button class="kpi ${stF === k ? "on" : ""}" data-a="kpi" data-s="${k}"><span class="pill p-${k}">${ST[k]}</span><b>…</b></button>`,
    )
    .join("")}</div>
- <div class="card"><input id="sq" placeholder="Caută VIN (parțial, minim 3 caractere)..." autocomplete="off" value="${esc(stQ)}" style="max-width:300px;margin-bottom:8px"><div class="wrap"><div class="list-scroll"><table><thead><tr><th>Nr. crt.</th><th>VIN</th><th>Model</th><th>Culoare</th><th>Stadiu</th><th>De cât timp</th><th>Operator</th><th>Remedieri</th><th></th></tr></thead><tbody id="tb"></tbody></table></div></div><div class="pg-bar"><button class="btn gh sm" id="pgPrev">‹ Anterior</button><span class="mut" id="pgInfo"></span><button class="btn gh sm" id="pgNext">Următor ›</button></div></div>`;
+ <div class="kpis cmp" id="ambKpis">${["in_ambalare", "marcat", "ambalat"].map((k) => `<button class="kpi ${ambF === k ? "on" : ""}" data-a="kpia" data-s="${k}"><span class="pill" style="background:${AMB_ST[k][1]};color:${AMB_ST[k][2]}">${AMB_ST[k][0]}</span><b>…</b></button>`).join("")}</div>
+ <div class="card fillcard"><input id="sq" placeholder="Caută VIN (parțial, minim 3 caractere)..." autocomplete="off" value="${esc(stQ)}" style="max-width:300px;margin-bottom:8px"><div class="wrap"><div class="list-scroll"><table><thead><tr><th>Nr. crt.</th><th>VIN</th><th>Model</th><th>Culoare</th><th>Stadiu</th><th>De cât timp</th><th>Operator</th><th>Remedieri</th><th></th></tr></thead><tbody id="tb"></tbody></table></div></div><div class="pg-bar"><button class="btn gh sm" id="pgPrev">‹ Anterior</button><span class="mut" id="pgInfo"></span><button class="btn gh sm" id="pgNext">Următor ›</button></div></div>`;
         const now = Date.now();
         let seq = 0;
         /* Contoare pe stadii: câte o cerere "head" (fără rânduri), pe coloană indexată */
         const loadKpis = async () => {
           const keys = Object.keys(ST),
             cnt = () =>
-              sb.from("asm_produse").select("id", { count: "exact", head: true }),
+              sb
+                .from("asm_produse")
+                .select("id", { count: "exact", head: true }),
             lateIso = new Date(now - S.prag_alerta_ore * 3600e3).toISOString();
           const [counts, late] = await Promise.all([
             Promise.all(keys.map((k) => cnt().eq("stadiu", k))),
@@ -2226,9 +2466,12 @@
           const build = (page) => {
             let r = sb.from("asm_produse").select(PL_COLS, { count: "exact" });
             if (stF) r = r.eq("stadiu", stF);
+            if (ambF) r = r.eq("ambalare_stare", ambF);
             if (q.length >= 3) r = r.ilike("vin", `%${q}%`);
             return r
-              .order("updated_at", { ascending: false })
+              .order(ambF === "in_ambalare" ? "ambalare_start" : "updated_at", {
+                ascending: ambF === "in_ambalare",
+              })
               .order("id")
               .range((page - 1) * PER_PAGE, page * PER_PAGE - 1);
           };
@@ -2269,7 +2512,7 @@
             pageItems
               .map(
                 (p, i) =>
-                  `<tr><td>${start + i + 1}</td><td class="mono">${esc(p.vin || "—")}</td><td>${esc(p.model || "—")}</td><td>${esc(p.culoare || "—")}</td><td><span class="pill p-${p.stadiu}">${ST[p.stadiu]}</span></td><td>${dur(now - new Date(p.updated_at))}</td><td>${p.operator_curent ? esc(nm(p.operator_curent)) : p.stadiu === "ctc_avizat" && avizatDe[p.id] ? esc(nm(avizatDe[p.id])) : "—"}</td><td>${p.nr_remedieri}</td><td><button class="btn gh sm" data-a="hist" data-id="${p.id}">Istoric</button> ${p.operator_curent ? `<button class="btn gh sm" data-a="elib" data-id="${p.id}">Eliberează</button>` : ""}${p.stadiu === "ctc_avizat" ? `<button class="btn gh sm" data-a="revoc" data-id="${p.id}">Revocă aviz</button>` : ""}</td></tr>`,
+                  `<tr><td>${start + i + 1}</td><td class="mono">${esc(p.vin || "—")}</td><td>${esc(p.model || "—")}</td><td>${esc(p.culoare || "—")}</td><td><span class="pill p-${p.stadiu}">${ST[p.stadiu]}</span>${ambPill(p)}</td><td>${dur(now - new Date(ambF === "in_ambalare" && p.ambalare_start ? p.ambalare_start : p.updated_at))}</td><td>${p.operator_curent ? esc(nm(p.operator_curent)) : p.stadiu === "ctc_avizat" && avizatDe[p.id] ? esc(nm(avizatDe[p.id])) : "—"}</td><td>${p.nr_remedieri}</td><td><button class="btn gh sm" data-a="hist" data-id="${p.id}">Istoric</button> ${p.operator_curent ? `<button class="btn gh sm" data-a="elib" data-id="${p.id}">Eliberează</button>` : ""}${p.stadiu === "ctc_avizat" ? `<button class="btn gh sm" data-a="revoc" data-id="${p.id}">Revocă aviz</button>` : ""}</td></tr>`,
               )
               .join("") ||
             '<tr><td colspan="9" class="mut">Niciun produs.</td></tr>';
@@ -2293,7 +2536,33 @@
           stPage = 1;
           loadPage();
         });
+        const loadAmbKpis = async () => {
+          const keys = ["in_ambalare", "marcat", "ambalat"],
+            cnt = () =>
+              sb
+                .from("asm_produse")
+                .select("id", { count: "exact", head: true }),
+            lateIso = new Date(now - S.prag_alerta_ore * 3600e3).toISOString();
+          const [counts, late] = await Promise.all([
+            Promise.all(keys.map((k) => cnt().eq("ambalare_stare", k))),
+            cnt()
+              .eq("ambalare_stare", "in_ambalare")
+              .lt("ambalare_start", lateIso),
+          ]);
+          if (tab !== "stadii") return;
+          keys.forEach((k, i) => {
+            const b = document.querySelector(`#ambKpis .kpi[data-s="${k}"] b`);
+            if (b) b.textContent = counts[i].count ?? 0;
+          });
+          const n = late.count || 0,
+            el = $("#stLateAmb");
+          if (el)
+            el.innerHTML = n
+              ? `<div class="al">⚠️ ${n} produse depășesc pragul de timp în ambalare (> ${S.prag_alerta_ore} h).</div>`
+              : "";
+        };
         loadKpis().catch(() => {});
+        loadAmbKpis().catch(() => {});
         await loadPage();
       }
       let indCache = null;
@@ -2328,6 +2597,9 @@
         const ctcOk = rows.filter(
           (r) => r.tip === "ctc" && r.rezultat === "ok",
         );
+        const ambOk = rows
+          .filter((r) => r.tip === "ambalare" && r.rezultat === "ok")
+          .map((r) => r.durata_sec);
         let pctPrima = "—";
         if (ctcOk.length) {
           const ids = [...new Set(ctcOk.map((r) => r.asm_produs_id))];
@@ -2366,7 +2638,7 @@
         }
         const card = (l, v) =>
           `<div><div class="mut">${l}</div><b style="font-size:20px">${v}</b></div>`;
-        return `<div class="kpis" style="margin-top:0;margin-bottom:0">${card("Timp mediu asamblare", asmOk.length ? dur(avg(asmOk) * 1e3) : "—")}${card("Aprobate din prima la CTC", pctPrima)}${card("Timp mediu remediere", remOk.length ? dur(avg(remOk) * 1e3) : "—")}${card("Criteriu cu cele mai multe NOK", esc(topCrit))}</div>`;
+        return `<div class="kpis" style="margin-top:0;margin-bottom:0">${card("Timp mediu asamblare", asmOk.length ? dur(avg(asmOk) * 1e3) : "—")}${card("Aprobate din prima la CTC", pctPrima)}${card("Timp mediu remediere", remOk.length ? dur(avg(remOk) * 1e3) : "—")}${card("Timp mediu ambalare", ambOk.length ? dur(avg(ambOk) * 1e3) : "—")}${card("Produse ambalate", ambOk.length)}${card("Criteriu cu cele mai multe NOK", esc(topCrit))}</div>`;
       }
 
       function isoZi(d) {
@@ -2429,6 +2701,20 @@
         }
       }
 
+      function fillMain(on) {
+        const c = $("#c"),
+          tb = document.querySelector(".topbar");
+        c.classList.toggle("fill", on);
+        c.style.height = on
+          ? Math.max(320, window.innerHeight - (tb ? tb.offsetHeight : 0)) +
+            "px"
+          : "";
+      }
+      window.addEventListener("resize", () => {
+        const c = $("#c");
+        if (c && c.classList.contains("fill")) fillMain(true);
+      });
+
       async function vStatistici(c) {
         if (!staDe || !staPana) {
           staPana = isoZi(new Date());
@@ -2438,13 +2724,18 @@
           const { data: op } = await sb
             .from("profiles")
             .select("id,nume,email,role")
-            .in("role", ["asm_operator", "asm_remediere", "asm_ctc"]);
+            .in("role", [
+              "asm_operator",
+              "asm_remediere",
+              "asm_ctc",
+              "asm_ambalare",
+            ]);
           staOperatori = op || [];
         }
         const dp = (id, val) =>
           `<div class="dp"><input type="text" id="${id}Txt" class="dp-txt" data-a="opendate" data-t="${id}" readonly placeholder="ZZ.LL.AAAA" value="${fmtDMY(val)}"><input type="date" id="${id}" class="dp-native" value="${val}" tabindex="-1"></div>`;
-        c.innerHTML = `<div class="card" style="padding:6px 14px;margin-bottom:6px"><h4 style="margin:0 0 3px">Indicatori (ultimele 30 zile)</h4><div id="indic" class="mut">Se calculează...</div></div>
- <div class="card sta-filters" style="padding:8px 14px;margin-bottom:6px">
+        c.innerHTML = `<div class="card" id="indCard" style="display:none;padding:6px 14px;margin-bottom:6px"><h4 style="margin:0 0 3px">Indicatori (ultimele 30 zile)</h4><div id="indic" class="mut">Se calculează...</div></div>
+ <div class="card sta-filters fillcard" style="padding:8px 14px;margin-bottom:6px">
    <div style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:6px">
      <div style="max-width:130px;flex:1 1 120px"><div class="mut" style="margin-bottom:1px">Din data</div>${dp("staDe", staDe)}</div>
      <div style="max-width:130px;flex:1 1 120px"><div class="mut" style="margin-bottom:1px">Până în data</div>${dp("staPana", staPana)}</div>
@@ -2483,9 +2774,10 @@
            `<option value="${k}" ${staTip === k ? "selected" : ""}>${TIP_ACT[k]}</option>`,
        )
        .join("")}</select></div>
-     <div style="max-width:130px;flex:1 1 120px"><div class="mut" style="margin-bottom:1px">Rezultat</div><select id="staRezultat"><option value="">Toate</option><option value="ok" ${staRezultat === "ok" ? "selected" : ""}>OK</option><option value="nok" ${staRezultat === "nok" ? "selected" : ""}>NOK</option></select></div>
+     <div style="max-width:130px;flex:1 1 120px"><div class="mut" style="margin-bottom:1px">Rezultat</div><select id="staRezultat"><option value="">Toate</option><option value="ok" ${staRezultat === "ok" ? "selected" : ""}>OK</option><option value="nok" ${staRezultat === "nok" ? "selected" : ""}>NOK</option><option value="retrimis_ctc" ${staRezultat === "retrimis_ctc" ? "selected" : ""}>Retrimis CTC</option></select></div>
      <div style="max-width:200px;flex:1 1 160px"><div class="mut" style="margin-bottom:1px">VIN (parțial)</div><input id="staVin" placeholder="Caută VIN..." value="${esc(staVin)}"></div>
      <div style="flex:1 1 140px;max-width:170px"><button class="btn gh sm" id="staExport" style="width:100%">⬇ Exportă Excel</button></div>
+      <div style="flex:0 0 auto"><button class="btn gh sm" id="staIndBtn">📊 Indicatori</button></div>
    </div>
    <div class="wrap"><div class="list-scroll" id="staListScroll" style="max-height:none"><table class="tbl-sta"><thead><tr><th>Nr.</th><th>Data</th><th>Tip</th><th>Operator</th><th>VIN</th><th>Model</th><th>Culoare</th><th>Stadiu</th><th>Rez.</th><th>Durată</th></tr></thead><tbody id="tbSta"></tbody></table></div></div>
    <div class="pg-bar"><button class="btn gh sm" id="staPrev">‹ Anterior</button><span class="mut" id="staInfo"></span><button class="btn gh sm" id="staNext">Următor ›</button></div>
@@ -2512,7 +2804,7 @@
             pageItems
               .map(
                 (r, i) =>
-                  `<tr><td>${start + i + 1}</td><td>${fmtDT(r.ended_at)}</td><td>${TIP_ACT[r.tip] || esc(r.tip)}</td><td>${esc(nm(r.user_id))}</td><td class="mono">${esc(r.produs.vin || "—")}</td><td>${esc(r.produs.model || "—")}</td><td>${esc(r.produs.culoare || "—")}</td><td>${r.produs.stadiu ? `<span class="pill p-${r.produs.stadiu}">${ST[r.produs.stadiu]}</span>` : "—"}</td><td>${(r.rezultat || "—").toUpperCase()}</td><td>${r.durata_sec ? dur(r.durata_sec * 1e3) : "—"}</td></tr>`,
+                  `<tr><td>${start + i + 1}</td><td>${fmtDT(r.ended_at)}</td><td>${TIP_ACT[r.tip] || esc(r.tip)}</td><td>${esc(nm(r.user_id))}</td><td class="mono">${esc(r.produs.vin || "—")}</td><td>${esc(r.produs.model || "—")}</td><td>${esc(r.produs.culoare || "—")}</td><td>${r.produs.stadiu ? `<span class="pill p-${r.produs.stadiu}">${ST[r.produs.stadiu]}</span>` : "—"}</td><td>${(r.rezultat || "—").replace("_", " ").toUpperCase()}</td><td>${r.durata_sec ? dur(r.durata_sec * 1e3) : "—"}</td></tr>`,
               )
               .join("") ||
             '<tr><td colspan="10" class="mut">Nicio înregistrare.</td></tr>';
@@ -2586,16 +2878,30 @@
         };
         $("#staExport").onclick = () => exportStatisticiExcel();
         await reload();
-        computeIndicatori()
-          .then((x) => {
-            const el = $("#indic");
-            if (el) el.innerHTML = x;
-            fitStaListScroll();
-          })
-          .catch(() => {
-            const el = $("#indic");
-            if (el) el.innerHTML = '<span class="mut">Indicatorii nu au putut fi calculați.</span>';
-          });
+        let indLoaded = false;
+        const loadInd = () =>
+          computeIndicatori()
+            .then((x) => {
+              const el = $("#indic");
+              if (el) el.innerHTML = x;
+              fitStaListScroll();
+            })
+            .catch(() => {
+              const el = $("#indic");
+              if (el)
+                el.innerHTML =
+                  '<span class="mut">Indicatorii nu au putut fi calculați.</span>';
+            });
+        $("#staIndBtn").onclick = () => {
+          const k = $("#indCard"),
+            show = k.style.display === "none";
+          k.style.display = show ? "" : "none";
+          $("#staIndBtn").classList.toggle("on", show);
+          if (show && !indLoaded) {
+            indLoaded = true;
+            loadInd();
+          }
+        };
       }
 
       async function exportStatisticiExcel() {
@@ -2633,7 +2939,7 @@
             model: r.produs.model || "—",
             culoare: r.produs.culoare || "—",
             stadiu: r.produs.stadiu ? ST[r.produs.stadiu] : "—",
-            rezultat: (r.rezultat || "—").toUpperCase(),
+            rezultat: (r.rezultat || "—").replace("_", " ").toUpperCase(),
             durata: r.durata_sec ? dur(r.durata_sec * 1e3) : "—",
           }),
         );
@@ -2713,12 +3019,10 @@
         d.addEventListener("toggle", async () => {
           if (!d.open || IST.signed || !IST.items.length) return;
           IST.signed = true;
-          const { data, error } = await sb.storage
-            .from(B)
-            .createSignedUrls(
-              IST.items.map((x) => x.path),
-              3600,
-            );
+          const { data, error } = await sb.storage.from(B).createSignedUrls(
+            IST.items.map((x) => x.path),
+            3600,
+          );
           if (error) {
             IST.signed = false;
             return toast(error.message, 1);
@@ -2742,7 +3046,7 @@
       function istLb(i) {
         const n = IST.items.length;
         if (!n) return;
-        i = (((Number(i) % n) + n) % n);
+        i = ((Number(i) % n) + n) % n;
         IST.i = i;
         const it = IST.items[i],
           u = IST.url[it.path] || "";
@@ -2791,7 +3095,11 @@
             .select("*,asm_poze(*)")
             .eq("asm_produs_id", id)
             .order("created_at"),
-          sb.from("asm_produse").select("vin").eq("id", id).single(),
+          sb
+            .from("asm_produse")
+            .select("vin,ambalare_stare,ambalare_start")
+            .eq("id", id)
+            .single(),
         ]);
         const nrx = istNereguli(
           nr.data || [],
@@ -2812,7 +3120,7 @@
         o.className = "ov";
         o.innerHTML = `<div class="ist-m"><div class="row"><h3 style="margin:0">Istoric produs</h3><div><button class="btn gh sm" data-a="pdf" data-id="${id}">Fișă PDF</button> <button class="btn gh sm" data-a="close">Închide</button></div></div><p class="mut">Situație: <b>${esc(sit)}</b>${nrx.c ? ` · 📷 ${nrx.c} poze` : ""}</p>
  <div class="ist-g${nrx.h ? "" : " s"}"><div><div class="tl">${(ev.data || []).map((x) => `<div>${dt(x.created_at)} · <b>${esc(EV[x.tip] || x.tip)}</b> · ${esc(nm(x.user_id))}${x.detalii ? ` <span class="mut">(${esc(x.detalii)})</span>` : ""}</div>`).join("") || "<div>Fără evenimente.</div>"}</div>
- <h4>Durate etape</h4><div class="tl">${(et.data || []).map((x) => `<div>${x.tip} · ${esc(nm(x.user_id))} · ${x.ended_at ? dur(x.durata_sec * 1e3) + " (" + (x.rezultat || "") + ")" : "în curs"}</div>`).join("")}</div></div>${nrx.h ? `<div>${nrx.h}</div>` : ""}</div></div>`;
+ <h4>Durate etape</h4><div class="tl">${(et.data || []).map((x) => `<div>${x.tip} · ${esc(nm(x.user_id))} · ${x.ended_at ? dur(x.durata_sec * 1e3) + " (" + (x.rezultat || "") + ")" : "în curs"}</div>`).join("")}${pv.data && pv.data.ambalare_stare === "in_ambalare" ? `<div>ambalare · în curs de la ${dt(pv.data.ambalare_start)}</div>` : ""}</div></div>${nrx.h ? `<div>${nrx.h}</div>` : ""}</div></div>`;
         document.body.appendChild(o);
         istInit(o);
       }
@@ -2914,6 +3222,7 @@
           asamblare: "Asamblare",
           remediere: "Remediere",
           ctc: "Verificare CTC",
+          ambalare: "Ambalare",
         };
         const TLN = {
           asamblare: "Din asamblare",
@@ -3061,6 +3370,18 @@
             ["Situație logistică:", sit],
           ],
         ];
+        if (prod.ambalare_stare)
+          kvRows.push([
+            [
+              "Ambalare:",
+              {
+                marcat: "De ambalat (după avizul CTC)",
+                in_ambalare: "În ambalare",
+                ambalat: "Ambalat",
+              }[prod.ambalare_stare] || prod.ambalare_stare,
+            ],
+            ["Marcat de:", prod.ambalare_marcat_de_nume || "—"],
+          ]);
         kvRows.forEach(([a, b]) => {
           const ka = kv(a[0], a[1], MX, colW),
             kb = kv(b[0], b[1], X2, colW),
@@ -3093,7 +3414,21 @@
             cx += w;
           });
           y += 5.6;
-          for (const e of etape) {
+          const etapeT = [
+            ...etape,
+            ...(prod.ambalare_stare === "in_ambalare"
+              ? [
+                  {
+                    tip: "ambalare",
+                    user_id: null,
+                    started_at: prod.ambalare_start,
+                    ended_at: null,
+                    rezultat: "în curs",
+                  },
+                ]
+              : []),
+          ];
+          for (const e of etapeT) {
             const cells = [
               TL[e.tip] || e.tip,
               nm(e.user_id),
