@@ -1680,15 +1680,21 @@
           go(tab);
         },
         fin: async () => {
+          const cbA = $("#ambCtc"),
+            cuAmb = F.e.tip === "ctc" && !!cbA && cbA.checked && !cbA.disabled;
           await rpc(
             F.e.tip === "ctc"
-              ? "asm_ctc_avizeaza"
+              ? cuAmb
+                ? "asm_ctc_avizeaza_cu_ambalare"
+                : "asm_ctc_avizeaza"
               : "asm_finalizeaza_asamblare",
             { p_etapa: F.e.id },
           );
           toast(
             F.e.tip === "ctc"
-              ? "Aviz CTC acordat."
+              ? cuAmb
+                ? "Aviz CTC acordat. Produsul a fost trimis la ambalare."
+                : "Aviz CTC acordat."
               : "Produs trimis în Depozit central.",
           );
           go(tab);
@@ -2127,6 +2133,7 @@
      : ""
  }
  <button class="btn gh sm" data-a="ner">+ Neregulă în afara checklist-ului</button>
+  ${e.tip === "ctc" ? '<label id="ambCtcLbl" style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:14px;font-weight:600"><input type="checkbox" id="ambCtc" disabled> Trimite la ambalare după avizare</label><div id="ambCtcMsg" class="mut" style="margin-top:2px"></div>' : ""}
  <div class="foot"><div><button class="btn gh" data-a="back">← Înapoi</button> ${e.tip === "asamblare" ? '<button class="btn gh" data-a="renunta">Renunță</button>' : ""}</div><div id="ft"></div></div>`;
         clearInterval(tmr);
         if (e.tip !== "ctc") {
@@ -2168,6 +2175,34 @@
           ft.innerHTML = `<button class="btn red" data-a="send" ${okN ? "" : "disabled"} title="${okN ? "" : "Fiecare neregulă are nevoie de descriere și poză"}">Trimite la remediere</button>`;
         } else
           ft.innerHTML = `<button class="btn" data-a="fin" ${all ? "" : "disabled"}>${F.e.tip === "ctc" ? "Acordă aviz CTC" : "Trimite în Depozit central"}</button>`;
+        ambCtcSync(!c.length && all);
+      }
+      // Checkbox „Trimite la ambalare după avizare": activ doar când ambalarea nu e deja
+      // solicitată/făcută și butonul „Acordă aviz CTC" este afișat (toate criteriile OK).
+      function ambCtcSync(ok) {
+        const cb = $("#ambCtc"),
+          msg = $("#ambCtcMsg"),
+          lb = $("#ambCtcLbl");
+        if (!cb) return;
+        const st = (F.p || F.e.asm_produse || {}).ambalare_stare;
+        let m = "";
+        if (st === "marcat" || st === "in_ambalare") {
+          cb.checked = true;
+          cb.disabled = true;
+          m = "Ambalare deja solicitată.";
+        } else if (st === "ambalat") {
+          cb.checked = false;
+          cb.disabled = true;
+          m = "Deja ambalat.";
+        } else {
+          cb.disabled = !ok;
+          if (!ok) {
+            cb.checked = false;
+            m = "Se activează când toate criteriile sunt OK.";
+          }
+        }
+        msg.textContent = m;
+        lb.style.opacity = cb.disabled ? ".55" : "";
       }
       async function addNer(txt) {
         const r = await sb.from("asm_nereguli").insert({
