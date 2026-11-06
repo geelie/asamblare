@@ -1325,14 +1325,14 @@
         $("#app").innerHTML =
           `<div class="auth"><img src="logo.webp" alt="Asamblare Logo" class="logo-auth"><div class="card">
  <p class="mut">Alege o parolă nouă pentru cont.</p>
- <input id="pw1" type="password" placeholder="Parolă nouă (minim 6 caractere)" autocomplete="new-password">
+ <input id="pw1" type="password" placeholder="Parolă nouă (minim 8 caractere)" autocomplete="new-password">
  <input id="pw2" type="password" placeholder="Confirmă parola nouă" autocomplete="new-password">
  <button class="btn" style="width:100%" id="go2">Salvează parola</button></div></div>`;
         $("#go2").onclick = async () => {
           const a = $("#pw1").value,
             b = $("#pw2").value;
-          if (a.length < 6)
-            return toast("Parola trebuie să aibă minim 6 caractere.", 1);
+          if (a.length < 8)
+            return toast("Parola trebuie să aibă minim 8 caractere.", 1);
           if (a !== b) return toast("Parolele introduse nu coincid.", 1);
           const btn = $("#go2");
           btn.disabled = true;
@@ -1358,7 +1358,7 @@
         o.innerHTML = `<div role="dialog" aria-modal="true" aria-labelledby="pwt" style="max-width:420px">
  <h3 id="pwt" style="margin:0 0 4px">Schimbă parola</h3>
  <p class="mut" style="margin:0 0 12px">Alege o parolă nouă pentru contul cu care ești autentificat.</p>
- <input id="np1" type="password" placeholder="Parola nouă (minim 6 caractere)" autocomplete="new-password" style="margin-bottom:8px">
+ <input id="np1" type="password" placeholder="Parola nouă (minim 8 caractere)" autocomplete="new-password" style="margin-bottom:8px">
  <input id="np2" type="password" placeholder="Confirmă parola nouă" autocomplete="new-password">
  <label class="mut" style="display:flex;align-items:center;gap:8px;margin:10px 0 0;cursor:pointer"><input type="checkbox" id="npshow"> Arată parolele</label>
  <div id="nperr" role="alert" style="color:var(--no);font-size:13px;min-height:20px;margin:8px 0"></div>
@@ -1406,7 +1406,7 @@
             b = p2.value;
           err.textContent = "";
           if (a.length < 6)
-            return fail("Parola trebuie să aibă minim 6 caractere.", p1);
+            return fail("Parola trebuie să aibă minim 8 caractere.", p1);
           if (a !== b) return fail("Parolele introduse nu coincid.", p2);
           busy = true;
           ok.disabled = cancel.disabled = true;
@@ -1449,7 +1449,7 @@
         $("#app").innerHTML =
           `<div class="auth"><img src="logo.webp" alt="Asamblare Logo" class="logo-auth"><div class="card">
  <input id="em" type="email" placeholder="Email" autocomplete="username">
- ${mode === "forgot" ? "" : '<input id="pw" type="password" placeholder="Parolă (minim 6 caractere)" autocomplete="current-password">'}
+ ${mode === "forgot" ? "" : '<input id="pw" type="password" placeholder="Parolă (minim 8 caractere)" autocomplete="current-password">'}
  <button class="btn" style="width:100%" id="go">${{ login: "Autentificare", signup: "Creează cont", forgot: "Trimite link de resetare" }[mode]}</button>
  <div class="mut" style="text-align:center"><a href="#" data-m="login">Autentificare</a> · <a href="#" data-m="signup">Cont nou</a> · <a href="#" data-m="forgot">Am uitat parola</a></div>
  ${mode === "signup" ? '<div class="mut">Contul nou nu are rol. Un Super Admin îl activează din aplicația de distribuții.</div>' : ""}</div></div>`;
@@ -2134,8 +2134,10 @@
  }
  <button class="btn gh sm" data-a="ner">+ Neregulă în afara checklist-ului</button>
   ${e.tip === "ctc" ? '<label id="ambCtcLbl" style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:14px;font-weight:600"><input type="checkbox" id="ambCtc" disabled> Trimite la ambalare după avizare</label><div id="ambCtcMsg" class="mut" style="margin-top:2px"></div>' : ""}
+ ${e.tip === "ctc" ? '<div class="card" id="ctcPz" style="margin-top:10px"><div class="mut">Se încarcă pozele...</div></div>' : ""}
  <div class="foot"><div><button class="btn gh" data-a="back">← Înapoi</button> ${e.tip === "asamblare" ? '<button class="btn gh" data-a="renunta">Renunță</button>' : ""}</div><div id="ft"></div></div>`;
         clearInterval(tmr);
+        if (e.tip === "ctc") ctcPozeLoad(e);
         if (e.tip !== "ctc") {
           const tk = () => {
             const el = $("#tm");
@@ -2158,6 +2160,102 @@
         }
         foot();
       }
+      /* ---------- POZE CTC (optional, 0-5, independente de nereguli) ---------- */
+      const CTC_MAX = 5;
+      const CTCPZ = { id: null, prod: null, n: 0 };
+      async function ctcPozeLoad(e) {
+        CTCPZ.id = e.id;
+        CTCPZ.prod = e.asm_produs_id;
+        const ok = () => $("#ctcPz") && CTCPZ.id === e.id;
+        if (!ok()) return;
+        const { data, error } = await sb
+          .from("asm_poze_ctc")
+          .select("id,storage_path,created_at")
+          .eq("etapa_id", e.id)
+          .order("created_at");
+        if (!ok()) return;
+        if (error) {
+          $("#ctcPz").innerHTML =
+            `<div class="mut">${esc(error.message)}</div>`;
+          return;
+        }
+        const l = data || [],
+          urls = {};
+        if (l.length) {
+          const r = await sb.storage.from(B).createSignedUrls(
+            l.map((x) => x.storage_path),
+            3600,
+          );
+          (r.data || []).forEach((u) => (urls[u.path] = u.signedUrl));
+        }
+        if (!ok()) return;
+        CTCPZ.n = l.length;
+        $("#ctcPz").innerHTML =
+          `<div class="row"><b>📷 Poze verificare CTC</b><span class="mut">${l.length} / ${CTC_MAX} · opțional</span></div>
+ <div class="ph">${l
+   .map(
+     (x) =>
+       `<span style="position:relative;display:inline-block"><img src="${urls[x.storage_path] || ""}" onclick="window.open(this.src)" alt=""><button type="button" class="btn gh sm" data-ctcdel="${x.id}" data-p="${esc(x.storage_path)}" title="Șterge poza" style="position:absolute;top:-6px;right:-6px;padding:0 7px;min-height:22px;border-radius:50%">✕</button></span>`,
+   )
+   .join(
+     "",
+   )}${l.length < CTC_MAX ? '<label class="lbl">📷 Adaugă poză<input type="file" accept="image/*" capture="environment" data-ctcpz="foto"></label>' : ""}</div>
+ ${l.length < 1 ? '<div class="mut">Poți adăuga poze și când toate criteriile sunt OK (opțional, maximum 5).</div>' : ""}`;
+      }
+      document.addEventListener("change", async (ev) => {
+        const t = ev.target;
+        if (t.dataset.ctcpz !== "foto") return;
+        const f = t.files[0],
+          id = CTCPZ.id,
+          prod = CTCPZ.prod;
+        if (!f || !id) return;
+        if (CTCPZ.n >= CTC_MAX) {
+          t.value = "";
+          return toast("Maximum 5 poze pentru o verificare CTC.", 1);
+        }
+        toast("Se încarcă poza...");
+        try {
+          const bl = await comp(f),
+            path = `${prod}/ctc/${id}/${Date.now()}.jpg`;
+          const u = await sb.storage
+            .from(B)
+            .upload(path, bl, { contentType: "image/jpeg" });
+          if (u.error) throw u.error;
+          const r = await sb
+            .from("asm_poze_ctc")
+            .insert({ asm_produs_id: prod, etapa_id: id, storage_path: path });
+          if (r.error) {
+            await sb.storage.from(B).remove([path]);
+            throw r.error;
+          }
+          toast("Poză adăugată.");
+        } catch (er) {
+          toast((er && er.message) || "Încărcarea pozei a eșuat.", 1);
+        }
+        t.value = "";
+        if (F && F.e && F.e.id === id) ctcPozeLoad(F.e);
+      });
+      document.addEventListener("click", async (ev) => {
+        const b = ev.target.closest("[data-ctcdel]");
+        if (!b) return;
+        ev.preventDefault();
+        if (!confirm("Ștergi această poză?")) return;
+        b.disabled = true;
+        await sb.storage.from(B).remove([b.dataset.p]);
+        const r = await sb
+          .from("asm_poze_ctc")
+          .delete()
+          .eq("id", b.dataset.ctcdel)
+          .select("id");
+        if (r.error || !(r.data || []).length)
+          toast(
+            r.error
+              ? r.error.message
+              : "Poza nu a putut fi ștearsă (verificarea CTC nu mai este activă).",
+            1,
+          );
+        if (F && F.e) ctcPozeLoad(F.e);
+      });
       function foot() {
         const c = cur(),
           all = F.sab.every((s, i) =>
@@ -3212,6 +3310,64 @@
           toast("Descărcarea a eșuat.", 1);
         }
       }
+      async function istCtc(id, vin, etape) {
+        const r = await sb
+          .from("asm_poze_ctc")
+          .select("*")
+          .eq("asm_produs_id", id)
+          .order("created_at");
+        const poze = r.data || [];
+        if (r.error || !poze.length) return { h: "", c: 0 };
+        const slug = (x) => String(x || "").replace(/[^A-Za-z0-9_-]+/g, ""),
+          cic = (etape || []).filter((e) => e.tip === "ctc");
+        let total = 0;
+        const cards = cic
+          .map((e, i) => {
+            const l = poze.filter((p) => p.etapa_id === e.id);
+            if (!l.length) return "";
+            const t = `Verificarea ${i + 1} · ${nm(e.user_id)} · ${dt(e.started_at)}${e.ended_at ? " → " + dt(e.ended_at) + (e.rezultat === "ok" ? " · avizat" : "") : " · în curs"}`;
+            const th = l
+              .map((p, j) => {
+                const idx = IST.items.length;
+                IST.items.push({
+                  path: p.storage_path,
+                  cap: `CTC · Verificarea ${i + 1} · ${nm(p.created_by)} · ${dt(p.created_at)}`,
+                  name: `${slug(vin)}_ctc_verificarea${i + 1}_${j + 1}.jpg`,
+                });
+                total++;
+                return `<img data-p="${esc(p.storage_path)}" data-a="istlb" data-i="${idx}" loading="lazy" alt="">`;
+              })
+              .join("");
+            return `<div class="ist-nr"><div class="h"><span>${esc(t)}</span></div><div class="ph">${th}</div></div>`;
+          })
+          .join("");
+        if (!total) return { h: "", c: 0 };
+        return {
+          c: total,
+          h: `<details id="ist-ctc" style="margin-top:14px"><summary style="cursor:pointer;font-weight:700">📋 Poze verificare CTC (${total})</summary>${cards}</details>`,
+        };
+      }
+      function istCtcInit(o) {
+        const d = o.querySelector("#ist-ctc");
+        if (!d) return;
+        d.addEventListener("toggle", async () => {
+          if (!d.open) return;
+          const miss = IST.items
+            .filter((x) => !IST.url[x.path])
+            .map((x) => x.path);
+          if (miss.length) {
+            const { data, error } = await sb.storage
+              .from(B)
+              .createSignedUrls(miss, 3600);
+            if (error) return toast(error.message, 1);
+            (data || []).forEach((u) => (IST.url[u.path] = u.signedUrl));
+          }
+          d.querySelectorAll("img[data-p]").forEach((im) => {
+            const u = IST.url[im.dataset.p];
+            if (u && !im.getAttribute("src")) im.src = u;
+          });
+        });
+      }
       async function istAmbalare(id, vin, etape, pv) {
         const r = await sb
           .from("asm_poze_ambalare")
@@ -3327,6 +3483,13 @@
           et.data || [],
           (pv.data && pv.data.vin) || "produs",
         );
+        const ctx = await istCtc(
+          id,
+          (pv.data && pv.data.vin) || "produs",
+          et.data || [],
+        );
+        nrx.h += ctx.h;
+        nrx.c += ctx.c;
         const amx = await istAmbalare(
           id,
           (pv.data && pv.data.vin) || "produs",
@@ -3353,6 +3516,7 @@
         document.body.appendChild(o);
         istInit(o);
         istAmbInit(o);
+        istCtcInit(o);
       }
       async function fetchImgDataUrl(url) {
         try {
@@ -3446,6 +3610,26 @@
           (su || []).forEach((u) => (um[u.path] = u.signedUrl));
           for (const x of ambPoze) {
             const u = um[x.storage_path];
+            if (!u) continue;
+            const d = await fetchImgDataUrl(u);
+            if (d) imgCache[x.storage_path] = d;
+          }
+        }
+        const { data: pCtc } = await sb
+          .from("asm_poze_ctc")
+          .select("*")
+          .eq("asm_produs_id", asmId)
+          .order("created_at");
+        const ctcPoze = pCtc || [];
+        if (ctcPoze.length) {
+          const { data: sc } = await sb.storage.from(B).createSignedUrls(
+            ctcPoze.map((x) => x.storage_path),
+            3600,
+          );
+          const uc = {};
+          (sc || []).forEach((u) => (uc[u.path] = u.signedUrl));
+          for (const x of ctcPoze) {
+            const u = uc[x.storage_path];
             if (!u) continue;
             const d = await fetchImgDataUrl(u);
             if (d) imgCache[x.storage_path] = d;
@@ -3853,6 +4037,54 @@
           thin();
           doc.line(MX, y, PW - MX, y);
           y += 3;
+        }
+
+        /* ===== Verificare CTC (poze) ===== */
+        {
+          const cicC = (etape || []).filter((e) => e.tip === "ctc"),
+            grC = [];
+          cicC.forEach((e, i) => {
+            const l = ctcPoze.filter(
+              (x) => x.etapa_id === e.id && imgCache[x.storage_path],
+            );
+            if (l.length)
+              grC.push({
+                l,
+                t: `Verificarea ${i + 1} — ${nm(e.user_id)} · ${dt(e.started_at)}${e.ended_at ? " – " + dt(e.ended_at) : " · în curs"}`,
+              });
+          });
+          if (grC.length) {
+            y += 3;
+            sec("Verificare CTC — poze", 40);
+            for (const g of grC) {
+              font("bold", 8.5);
+              const tl = doc.splitTextToSize(g.t, CW);
+              ensure(tl.length * 3.9 + PS + PG + 2);
+              ink();
+              doc.text(tl, MX, y + 3);
+              y += tl.length * 3.9 + 1.5;
+              for (let r0 = 0; r0 < g.l.length; r0 += 5) {
+                ensure(PS + PG);
+                for (let k = 0; k < 5; k++) {
+                  const ph = g.l[r0 + k];
+                  if (!ph) continue;
+                  const d = imgCache[ph.storage_path];
+                  try {
+                    const dm = await imgDims(d);
+                    let w = PS,
+                      hh = (w * dm.h) / dm.w;
+                    if (hh > PS) {
+                      hh = PS;
+                      w = (hh * dm.w) / dm.h;
+                    }
+                    doc.addImage(d, "JPEG", MX + k * (PS + PG), y, w, hh);
+                  } catch (er) {}
+                }
+                y += PS + PG;
+              }
+              y += 2;
+            }
+          }
         }
 
         /* ===== 5. Ambalare (poze) ===== */
