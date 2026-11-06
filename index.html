@@ -2412,7 +2412,7 @@
         }
         F = { amb: p };
         $("#c").innerHTML =
-          `<div class="card"><div class="row"><div>${prodTxt(p)}<div class="mut">Ambalare · apărut ${dt(p.ambalare_start)}</div></div><div style="text-align:right"><div class="timer" id="tm"></div><div class="mut">de la apariție</div></div></div></div><div class="card"><textarea id="an" placeholder="Notă (opțional)"></textarea></div><div class="foot"><div><button class="btn gh" data-a="back">← Înapoi</button> <button class="btn gh" data-a="ambret">Retrimite la CTC</button></div><button class="btn" data-a="ambfin">Finalizează ambalarea</button></div>`;
+          `<div class="card"><div class="row"><div>${prodTxt(p)}<div class="mut">Ambalare · apărut ${dt(p.ambalare_start)}</div></div><div style="text-align:right"><div class="timer" id="tm"></div><div class="mut">de la apariție</div></div></div></div><div class="card" id="ambPz"><div class="mut">Se încarcă pozele...</div></div><div class="card"><textarea id="an" placeholder="Notă (opțional)"></textarea></div><div class="foot"><div><button class="btn gh" data-a="back">← Înapoi</button> <button class="btn gh" data-a="ambret">Retrimite la CTC</button></div><button class="btn" id="ambfinB" disabled data-a="ambfin">Finalizează ambalarea</button></div>`;
         clearInterval(tmr);
         const f = (n) => String(n).padStart(2, "0"),
           tk = () => {
@@ -2431,7 +2431,107 @@
           };
         tk();
         tmr = setInterval(tk, 1e3);
+        ambPozeLoad(p);
       }
+
+      /* ---------- POZE AMBALARE (ambalator) ---------- */
+      const AMB_MAX = 5;
+      const AMBPZ = { id: null, n: 0 };
+      async function ambPozeLoad(p) {
+        AMBPZ.id = p.id;
+        const ok = () => $("#ambPz") && AMBPZ.id === p.id;
+        if (!ok()) return;
+        const { data, error } = await sb
+          .from("asm_poze_ambalare")
+          .select("id,storage_path,created_at")
+          .eq("asm_produs_id", p.id)
+          .is("etapa_id", null)
+          .gte("created_at", p.ambalare_start)
+          .order("created_at");
+        if (!ok()) return;
+        if (error) {
+          $("#ambPz").innerHTML =
+            `<div class="mut">${esc(error.message)}</div>`;
+          return;
+        }
+        const l = data || [],
+          urls = {};
+        if (l.length) {
+          const r = await sb.storage.from(B).createSignedUrls(
+            l.map((x) => x.storage_path),
+            3600,
+          );
+          (r.data || []).forEach((u) => (urls[u.path] = u.signedUrl));
+        }
+        if (!ok()) return;
+        AMBPZ.n = l.length;
+        $("#ambPz").innerHTML =
+          `<div class="row"><b>📷 Poze ambalaj</b><span class="mut">${l.length} / ${AMB_MAX} · minim 1</span></div>
+ <div class="ph">${l
+   .map(
+     (x) =>
+       `<span style="position:relative;display:inline-block"><img src="${urls[x.storage_path] || ""}" onclick="window.open(this.src)" alt=""><button type="button" class="btn gh sm" data-ambdel="${x.id}" data-p="${esc(x.storage_path)}" title="Șterge poza" style="position:absolute;top:-6px;right:-6px;padding:0 7px;min-height:22px;border-radius:50%">✕</button></span>`,
+   )
+   .join(
+     "",
+   )}${l.length < AMB_MAX ? '<label class="lbl">📷 Adaugă poză<input type="file" accept="image/*" capture="environment" data-amb="foto"></label>' : ""}</div>
+ ${l.length < 1 ? '<div class="mut">Adaugă cel puțin o poză pentru a putea finaliza ambalarea.</div>' : ""}`;
+        const fb = $("#ambfinB");
+        if (fb) fb.disabled = l.length < 1;
+      }
+      document.addEventListener("change", async (e) => {
+        const t = e.target;
+        if (t.dataset.amb !== "foto") return;
+        const f = t.files[0],
+          id = AMBPZ.id;
+        if (!f || !id) return;
+        if (AMBPZ.n >= AMB_MAX) {
+          t.value = "";
+          return toast("Maximum 5 poze pentru o ambalare.", 1);
+        }
+        toast("Se încarcă poza...");
+        try {
+          const bl = await comp(f),
+            path = `${id}/ambalare/${Date.now()}.jpg`;
+          const u = await sb.storage
+            .from(B)
+            .upload(path, bl, { contentType: "image/jpeg" });
+          if (u.error) throw u.error;
+          const r = await sb
+            .from("asm_poze_ambalare")
+            .insert({ asm_produs_id: id, storage_path: path });
+          if (r.error) {
+            await sb.storage.from(B).remove([path]);
+            throw r.error;
+          }
+          toast("Poză adăugată.");
+        } catch (er) {
+          toast((er && er.message) || "Încărcarea pozei a eșuat.", 1);
+        }
+        t.value = "";
+        if (F && F.amb && F.amb.id === id) ambPozeLoad(F.amb);
+      });
+      document.addEventListener("click", async (e) => {
+        const b = e.target.closest("[data-ambdel]");
+        if (!b) return;
+        e.preventDefault();
+        if (!confirm("Ștergi această poză?")) return;
+        b.disabled = true;
+        await sb.storage.from(B).remove([b.dataset.p]);
+        const r = await sb
+          .from("asm_poze_ambalare")
+          .delete()
+          .eq("id", b.dataset.ambdel)
+          .select("id");
+        if (r.error || !(r.data || []).length)
+          toast(
+            r.error
+              ? r.error.message
+              : "Poza nu a putut fi ștearsă (produsul nu mai este în ambalare).",
+            1,
+          );
+        if (F && F.amb) ambPozeLoad(F.amb);
+      });
 
       /* ---------- ADMIN ---------- */
       let stF = "",
@@ -3112,6 +3212,92 @@
           toast("Descărcarea a eșuat.", 1);
         }
       }
+      async function istAmbalare(id, vin, etape, pv) {
+        const r = await sb
+          .from("asm_poze_ambalare")
+          .select("*")
+          .eq("asm_produs_id", id)
+          .order("created_at");
+        const poze = r.data || [];
+        if (r.error || !poze.length) return { h: "", c: 0 };
+        const slug = (x) => String(x || "").replace(/[^A-Za-z0-9_-]+/g, ""),
+          REZ = { ok: "finalizată", retrimis_ctc: "retrimis la CTC" },
+          cic = (etape || []).filter((e) => e.tip === "ambalare"),
+          curT =
+            pv && pv.ambalare_stare === "in_ambalare" && pv.ambalare_start
+              ? new Date(pv.ambalare_start).getTime()
+              : null,
+          grupuri = [];
+        cic.forEach((e, i) => {
+          const l = poze.filter((p) => p.etapa_id === e.id);
+          if (l.length)
+            grupuri.push({
+              k: i + 1,
+              l,
+              t: `Ciclul ${i + 1} · ${nm(e.user_id)} · ${dt(e.started_at)} → ${dt(e.ended_at)}${REZ[e.rezultat] ? " · " + REZ[e.rezultat] : ""}`,
+            });
+        });
+        const orf = poze.filter((p) => !p.etapa_id),
+          inCurs = orf.filter(
+            (p) => curT && new Date(p.created_at).getTime() >= curT,
+          ),
+          anul = orf.filter((p) => !inCurs.includes(p));
+        if (inCurs.length)
+          grupuri.push({
+            k: cic.length + 1,
+            l: inCurs,
+            t: `Ciclul ${cic.length + 1} · în curs`,
+          });
+        if (anul.length)
+          grupuri.push({
+            k: "anulat",
+            l: anul,
+            t: "Ciclu anulat sau suspendat (fără finalizare)",
+          });
+        let total = 0;
+        const cards = grupuri
+          .map((g) => {
+            const th = g.l
+              .map((p, j) => {
+                const idx = IST.items.length;
+                IST.items.push({
+                  path: p.storage_path,
+                  cap: `Ambalare · ${g.t.split(" · ")[0]} · ${nm(p.created_by)} · ${dt(p.created_at)}`,
+                  name: `${slug(vin)}_ambalare_ciclu${g.k}_${j + 1}.jpg`,
+                });
+                total++;
+                return `<img data-p="${esc(p.storage_path)}" data-a="istlb" data-i="${idx}" loading="lazy" alt="">`;
+              })
+              .join("");
+            return `<div class="ist-nr"><div class="h"><span>${esc(g.t)}</span></div><div class="ph">${th}</div></div>`;
+          })
+          .join("");
+        return {
+          c: total,
+          h: `<details id="ist-amb" style="margin-top:14px"><summary style="cursor:pointer;font-weight:700">📦 Poze ambalaj (${total})</summary>${cards}</details>`,
+        };
+      }
+      function istAmbInit(o) {
+        const d = o.querySelector("#ist-amb");
+        if (!d) return;
+        d.addEventListener("toggle", async () => {
+          if (!d.open) return;
+          const miss = IST.items
+            .filter((x) => !IST.url[x.path])
+            .map((x) => x.path);
+          if (miss.length) {
+            const { data, error } = await sb.storage
+              .from(B)
+              .createSignedUrls(miss, 3600);
+            if (error) return toast(error.message, 1);
+            (data || []).forEach((u) => (IST.url[u.path] = u.signedUrl));
+          }
+          d.querySelectorAll("img[data-p]").forEach((im) => {
+            const u = IST.url[im.dataset.p];
+            if (u && !im.getAttribute("src")) im.src = u;
+          });
+        });
+      }
       async function ist(id) {
         const [ev, et, lg, nr, pv] = await Promise.all([
           sb
@@ -3141,6 +3327,14 @@
           et.data || [],
           (pv.data && pv.data.vin) || "produs",
         );
+        const amx = await istAmbalare(
+          id,
+          (pv.data && pv.data.vin) || "produs",
+          et.data || [],
+          pv.data,
+        );
+        nrx.h += amx.h;
+        nrx.c += amx.c;
         const l = (lg.data || [])[0],
           sit = !l
             ? "În Depozit central / în flux"
@@ -3158,6 +3352,7 @@
  <h4>Durate etape</h4><div class="tl">${(et.data || []).map((x) => `<div>${x.tip} · ${esc(nm(x.user_id))} · ${x.ended_at ? dur(x.durata_sec * 1e3) + " (" + (x.rezultat || "") + ")" : "în curs"}</div>`).join("")}${pv.data && pv.data.ambalare_stare === "in_ambalare" ? `<div>ambalare · în curs de la ${dt(pv.data.ambalare_start)}</div>` : ""}</div></div>${nrx.h ? `<div>${nrx.h}</div>` : ""}</div></div>`;
         document.body.appendChild(o);
         istInit(o);
+        istAmbInit(o);
       }
       async function fetchImgDataUrl(url) {
         try {
@@ -3235,6 +3430,26 @@
           if (!u) continue;
           const d = await fetchImgDataUrl(u);
           if (d) imgCache[path] = d;
+        }
+        const { data: pAmb } = await sb
+          .from("asm_poze_ambalare")
+          .select("*")
+          .eq("asm_produs_id", asmId)
+          .order("created_at");
+        const ambPoze = pAmb || [];
+        if (ambPoze.length) {
+          const { data: su } = await sb.storage.from(B).createSignedUrls(
+            ambPoze.map((x) => x.storage_path),
+            3600,
+          );
+          const um = {};
+          (su || []).forEach((u) => (um[u.path] = u.signedUrl));
+          for (const x of ambPoze) {
+            const u = um[x.storage_path];
+            if (!u) continue;
+            const d = await fetchImgDataUrl(u);
+            if (d) imgCache[x.storage_path] = d;
+          }
         }
 
         const { jsPDF } = window.jspdf,
@@ -3638,6 +3853,73 @@
           thin();
           doc.line(MX, y, PW - MX, y);
           y += 3;
+        }
+
+        /* ===== 5. Ambalare (poze) ===== */
+        {
+          const REZA = { ok: "finalizată", retrimis_ctc: "retrimis la CTC" },
+            cicA = (etape || []).filter((e) => e.tip === "ambalare"),
+            curA =
+              prod.ambalare_stare === "in_ambalare" && prod.ambalare_start
+                ? new Date(prod.ambalare_start).getTime()
+                : null,
+            grA = [];
+          cicA.forEach((e, i) => {
+            const l = ambPoze.filter(
+              (x) => x.etapa_id === e.id && imgCache[x.storage_path],
+            );
+            if (l.length)
+              grA.push({
+                l,
+                t: `Ciclul ${i + 1} — ${nm(e.user_id)} · ${dt(e.started_at)} → ${dt(e.ended_at)}${REZA[e.rezultat] ? " · " + REZA[e.rezultat] : ""}`,
+              });
+          });
+          const orfA = ambPoze.filter(
+              (x) => !x.etapa_id && imgCache[x.storage_path],
+            ),
+            curL = orfA.filter(
+              (x) => curA && new Date(x.created_at).getTime() >= curA,
+            ),
+            anuL = orfA.filter((x) => !curL.includes(x));
+          if (curL.length)
+            grA.push({ l: curL, t: `Ciclul ${cicA.length + 1} — în curs` });
+          if (anuL.length)
+            grA.push({
+              l: anuL,
+              t: "Ciclu anulat sau suspendat (fără finalizare)",
+            });
+          if (grA.length) {
+            y += 3;
+            sec("Ambalare — poze", 40);
+            for (const g of grA) {
+              font("bold", 8.5);
+              const tl = doc.splitTextToSize(g.t, CW);
+              ensure(tl.length * 3.9 + PS + PG + 2);
+              ink();
+              doc.text(tl, MX, y + 3);
+              y += tl.length * 3.9 + 1.5;
+              for (let r0 = 0; r0 < g.l.length; r0 += 5) {
+                ensure(PS + PG);
+                for (let k = 0; k < 5; k++) {
+                  const ph = g.l[r0 + k];
+                  if (!ph) continue;
+                  const d = imgCache[ph.storage_path];
+                  try {
+                    const dm = await imgDims(d);
+                    let w = PS,
+                      hh = (w * dm.h) / dm.w;
+                    if (hh > PS) {
+                      hh = PS;
+                      w = (hh * dm.w) / dm.h;
+                    }
+                    doc.addImage(d, "JPEG", MX + k * (PS + PG), y, w, hh);
+                  } catch (er) {}
+                }
+                y += PS + PG;
+              }
+              y += 2;
+            }
+          }
         }
 
         /* ===== Subsol: numerotare pagini ===== */
