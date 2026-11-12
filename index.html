@@ -1302,6 +1302,157 @@
               Math.floor((m % 1440) / 60) +
               " h";
       }
+      /* ---------- TIMP LUCRAT: L-V, program din Setări, fără zile libere legale; fus Europe/Bucharest ---------- */
+      const TZ = "Europe/Bucharest";
+      const ZL = new Set();
+      const fmtTZ = new Intl.DateTimeFormat("en-GB", {
+        timeZone: TZ,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hourCycle: "h23",
+      });
+      function tzParts(ms) {
+        const o = {};
+        for (const q of fmtTZ.formatToParts(new Date(ms)))
+          if (q.type !== "literal") o[q.type] = +q.value;
+        o.hour = o.hour % 24;
+        return o;
+      }
+      function tzWall(ms) {
+        const q = tzParts(ms);
+        return Date.UTC(q.year, q.month - 1, q.day, q.hour, q.minute, q.second);
+      }
+      const tzMemo = new Map();
+      function tzInstant(y, m, d, hh, mm) {
+        const k = y + "-" + m + "-" + d + "-" + hh + ":" + mm;
+        let v = tzMemo.get(k);
+        if (v !== undefined) return v;
+        const w = Date.UTC(y, m - 1, d, hh, mm, 0);
+        let g = w - (tzWall(w) - w);
+        g = w - (tzWall(g) - g);
+        if (tzMemo.size > 5000) tzMemo.clear();
+        tzMemo.set(k, g);
+        return g;
+      }
+      const hmP = (v, def) => {
+        const a = String(v || def).split(":");
+        return [+a[0] || 0, +a[1] || 0];
+      };
+      const prog = () => [
+        hmP(S && S.ora_start, "08:00"),
+        hmP(S && S.ora_sfarsit, "16:00"),
+      ];
+      const pad2 = (n) => String(n).padStart(2, "0");
+      function ziLucr(y, m, d) {
+        const w = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+        return w !== 0 && w !== 6 && !ZL.has(y + "-" + pad2(m) + "-" + pad2(d));
+      }
+      /* milisecunde lucrate între două momente (aceeași logică ca asm_sec_lucrate din SQL) */
+      function lucratMs(st, en) {
+        const a0 = +st,
+          e0 = +en;
+        if (!(e0 > a0)) return 0;
+        const [[h1, m1], [h2, m2]] = prog();
+        const a = tzParts(a0),
+          b = tzParts(e0),
+          last = Date.UTC(b.year, b.month - 1, b.day);
+        let tot = 0;
+        for (
+          let c = Date.UTC(a.year, a.month - 1, a.day);
+          c <= last;
+          c += 864e5
+        ) {
+          const t = new Date(c),
+            y = t.getUTCFullYear(),
+            m = t.getUTCMonth() + 1,
+            d = t.getUTCDate();
+          if (!ziLucr(y, m, d)) continue;
+          const x = Math.max(a0, tzInstant(y, m, d, h1, m1)),
+            z = Math.min(e0, tzInstant(y, m, d, h2, m2));
+          if (z > x) tot += z - x;
+        }
+        return tot;
+      }
+      function inProgram(ms) {
+        const [[h1, m1], [h2, m2]] = prog(),
+          a = tzParts(ms);
+        if (!ziLucr(a.year, a.month, a.day)) return false;
+        return (
+          ms >= tzInstant(a.year, a.month, a.day, h1, m1) &&
+          ms < tzInstant(a.year, a.month, a.day, h2, m2)
+        );
+      }
+      function urmDeschidere(ms) {
+        const [[h1, m1]] = prog(),
+          a = tzParts(ms);
+        for (
+          let i = 0, c = Date.UTC(a.year, a.month - 1, a.day);
+          i < 400;
+          i++, c += 864e5
+        ) {
+          const t = new Date(c),
+            y = t.getUTCFullYear(),
+            m = t.getUTCMonth() + 1,
+            d = t.getUTCDate();
+          if (!ziLucr(y, m, d)) continue;
+          const o = tzInstant(y, m, d, h1, m1);
+          if (o > ms) return o;
+        }
+        return null;
+      }
+      function notaProgram(ms, suf) {
+        if (inProgram(ms)) return "timp lucrat " + suf;
+        const o = urmDeschidere(ms);
+        if (!o) return "⏸ în afara programului";
+        const z = new Date(o).toLocaleDateString("ro-RO", {
+            weekday: "long",
+            timeZone: TZ,
+          }),
+          h = new Date(o).toLocaleTimeString("ro-RO", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+            timeZone: TZ,
+          });
+        return "⏸ în afara programului, se reia " + z + " " + h;
+      }
+      /* durată lucrată: ore + minute (o zi lucrătoare nu are 24 h, deci fără „zile”) */
+      function durW(ms) {
+        const m = Math.floor(ms / 6e4);
+        return m < 60
+          ? m + " min"
+          : Math.floor(m / 60) + " h " + (m % 60) + " min";
+      }
+      /* pentru produse în lucru: timp lucrat + (dacă a trecut cel puțin o zi) vechimea calendaristică */
+      function durL(startIso, endMs) {
+        const s = +new Date(startIso),
+          e = endMs || Date.now(),
+          c = e - s;
+        return (
+          durW(lucratMs(s, e)) + (c >= 864e5 ? " · vechime " + dur(c) : "")
+        );
+      }
+      async function incarcaZl() {
+        const { data, error } = await sb.from("asm_zile_libere").select("data");
+        if (error) return console.error(error);
+        ZL.clear();
+        (data || []).forEach((r) => ZL.add(r.data));
+      }
+      /* momentul aflat la N ore LUCRATE în urmă (pragul alertelor); fallback: ore calendaristice */
+      async function dataPrag() {
+        const { data, error } = await sb.rpc("asm_data_prag", {
+          p_ore: S.prag_alerta_ore,
+        });
+        if (error || !data)
+          return new Date(
+            Date.now() - S.prag_alerta_ore * 3600e3,
+          ).toISOString();
+        return new Date(data).toISOString();
+      }
       function toast(m, e) {
         const t = $("#toast");
         t.textContent = m;
@@ -1518,6 +1669,7 @@
           prag_alerta_ore: 8,
           poze_obligatorii: true,
         };
+        await incarcaZl();
         const { data: pr } = await sb.from("profiles").select("id,nume,email");
         (pr || []).forEach((x) => (names[x.id] = x.nume || x.email));
         names[me.id] = me.nume || me.email;
@@ -1794,6 +1946,25 @@
           toast(`Criterii copiate la modelul „${noul}".`);
           go("checklist");
         },
+        zladd: async () => {
+          const d = $("#zlData").value;
+          if (!d) return toast("Alege data.", 1);
+          const r = await sb.from("asm_zile_libere").upsert({
+            data: d,
+            denumire: ($("#zlDen").value || "").trim() || null,
+          });
+          if (r.error) return toast(r.error.message, 1);
+          await incarcaZl();
+          zlRender();
+          toast("Zi liberă salvată.");
+        },
+        zldel: async (d) => {
+          const r = await sb.from("asm_zile_libere").delete().eq("data", d.d);
+          if (r.error) return toast(r.error.message, 1);
+          await incarcaZl();
+          zlRender();
+          toast("Zi liberă ștearsă.");
+        },
         istlb: (d) => istLb(d.i),
         istnav: (d) => istLb(IST.i + Number(d.d)),
         istdl: () => istDl(IST.i),
@@ -1859,11 +2030,21 @@
           const r = await sb
             .from("asm_setari")
             .update({
-              [t.dataset.f]: t.type === "checkbox" ? t.checked : +t.value,
+              [t.dataset.f]:
+                t.type === "checkbox"
+                  ? t.checked
+                  : t.type === "time"
+                    ? t.value
+                    : +t.value,
             })
             .eq("id", 1);
           if (r.error) return toast(r.error.message, 1);
-          S[t.dataset.f] = t.type === "checkbox" ? t.checked : +t.value;
+          S[t.dataset.f] =
+            t.type === "checkbox"
+              ? t.checked
+              : t.type === "time"
+                ? t.value
+                : +t.value;
           toast("Salvat.");
         }
       });
@@ -1906,7 +2087,7 @@
           ((data || [])
             .map(
               (e) =>
-                `<div class="card row"><div>${prodTxt(e.asm_produse)}<div class="mut">${e.tip} · de ${dur(Date.now() - new Date(e.started_at))}</div></div><button class="btn" data-a="open" data-id="${e.id}" data-tip="${e.tip}">Deschide</button></div>`,
+                `<div class="card row"><div>${prodTxt(e.asm_produse)}<div class="mut">${e.tip} · de ${durL(e.started_at)}</div></div><button class="btn" data-a="open" data-id="${e.id}" data-tip="${e.tip}">Deschide</button></div>`,
             )
             .join("") || '<div class="mut">Nimic în lucru.</div>');
       }
@@ -1980,7 +2161,7 @@
             all
               .map(
                 (p) =>
-                  `<div class="card row"><div>${prodTxt(p)}<div class="mut">de ${dur(Date.now() - new Date(p.updated_at))}${p.nr_remedieri ? ` · reverificare (remediat de ${p.nr_remedieri}×)` : ""}${extra && p.sursa_remediere ? ` · sursa: ${p.sursa_remediere}` : ""}${p.ctc_motiv_ambalare ? `<div><b>Retrimis din ambalare:</b> ${esc(p.ctc_motiv_ambalare)}</div>` : ""}</div></div><button class="btn" data-a="${btn}" data-id="${p.id}">${lbl}</button></div>`,
+                  `<div class="card row"><div>${prodTxt(p)}<div class="mut">de ${durL(p.updated_at)}${p.nr_remedieri ? ` · reverificare (remediat de ${p.nr_remedieri}×)` : ""}${extra && p.sursa_remediere ? ` · sursa: ${p.sursa_remediere}` : ""}${p.ctc_motiv_ambalare ? `<div><b>Retrimis din ambalare:</b> ${esc(p.ctc_motiv_ambalare)}</div>` : ""}</div></div><button class="btn" data-a="${btn}" data-id="${p.id}">${lbl}</button></div>`,
               )
               .join("") ||
             '<div class="mut">Niciun produs în această listă.</div>';
@@ -2114,7 +2295,7 @@
         const { e, p } = F;
         const prev = F.ner.filter((n) => n.etapa_id !== e.id);
         $("#c").innerHTML =
-          `<div class="card"><div class="row"><div>${prodTxt(p)}<div class="mut">${e.tip === "ctc" ? "Verificare CTC" : "Asamblare"} · început ${dt(e.started_at)}${e.tip === "ctc" && p.ctc_motiv_ambalare ? `<div><b>Retrimis din ambalare:</b> ${esc(p.ctc_motiv_ambalare)}</div>` : ""}</div></div>${e.tip === "ctc" ? "" : '<div style="text-align:right"><div class="timer" id="tm"></div><div class="mut">de la preluare</div></div>'}</div></div>
+          `<div class="card"><div class="row"><div>${prodTxt(p)}<div class="mut">${e.tip === "ctc" ? "Verificare CTC" : "Asamblare"} · început ${dt(e.started_at)}${e.tip === "ctc" && p.ctc_motiv_ambalare ? `<div><b>Retrimis din ambalare:</b> ${esc(p.ctc_motiv_ambalare)}</div>` : ""}</div></div>${e.tip === "ctc" ? "" : '<div style="text-align:right"><div class="timer" id="tm"></div><div class="mut" id="tmN">de la preluare</div></div>'}</div></div>
  ${e.tip === "ctc" && prev.length ? `<div class="al"><b>Reverificare</b> – defecte raportate anterior:<br>${prev.map((n) => "• " + esc(n.criteriu_text ? n.criteriu_text + ": " : "") + esc(n.descriere) + (n.status === "remediata" ? " ✔ remediat" : "")).join("<br>")}</div>` : ""}
  ${F.sab.length ? "" : '<div class="al">Nu există criterii de checklist definite. Un Admin trebuie să le adauge din tabul „Checklist".</div>'}
  ${F.sab
@@ -2144,7 +2325,9 @@
             if (el) {
               const s = Math.max(
                   0,
-                  Math.floor((Date.now() - new Date(e.started_at)) / 1e3),
+                  Math.floor(
+                    lucratMs(new Date(e.started_at), Date.now()) / 1e3,
+                  ),
                 ),
                 f = (n) => String(n).padStart(2, "0");
               el.textContent =
@@ -2153,6 +2336,9 @@
                 f(((s / 60) % 60) | 0) +
                 ":" +
                 f(s % 60);
+              const nt = $("#tmN");
+              if (nt)
+                nt.textContent = notaProgram(Date.now(), "de la preluare");
             }
           };
           tk();
@@ -2462,7 +2648,7 @@
             all
               .map(
                 (p) =>
-                  `<div class="card row"><div>${prodTxt(p)}<div class="mut">în ambalare de <b class="ambt" data-t="${p.ambalare_start}">${dur(Date.now() - new Date(p.ambalare_start))}</b>${p.ambalare_marcat_de_nume ? ` · cerut de ${esc(p.ambalare_marcat_de_nume)}` : ""}</div></div><div>${esteAdm() ? `<button class="btn gh sm" data-a="ambanul" data-id="${p.id}">Anulează</button> ` : ""}<button class="btn" data-a="amb" data-id="${p.id}">Deschide</button></div></div>`,
+                  `<div class="card row"><div>${prodTxt(p)}<div class="mut">în ambalare de <b class="ambt" data-t="${p.ambalare_start}">${durL(p.ambalare_start)}</b>${p.ambalare_marcat_de_nume ? ` · cerut de ${esc(p.ambalare_marcat_de_nume)}` : ""}</div></div><div>${esteAdm() ? `<button class="btn gh sm" data-a="ambanul" data-id="${p.id}">Anulează</button> ` : ""}<button class="btn" data-a="amb" data-id="${p.id}">Deschide</button></div></div>`,
               )
               .join("") ||
             '<div class="mut">Niciun produs de ambalat în acest moment.</div>';
@@ -2490,10 +2676,7 @@
           () =>
             document
               .querySelectorAll(".ambt")
-              .forEach(
-                (el) =>
-                  (el.textContent = dur(Date.now() - new Date(el.dataset.t))),
-              ),
+              .forEach((el) => (el.textContent = durL(el.dataset.t))),
           3e4,
         );
         await load();
@@ -2510,7 +2693,7 @@
         }
         F = { amb: p };
         $("#c").innerHTML =
-          `<div class="card"><div class="row"><div>${prodTxt(p)}<div class="mut">Ambalare · apărut ${dt(p.ambalare_start)}</div></div><div style="text-align:right"><div class="timer" id="tm"></div><div class="mut">de la apariție</div></div></div></div><div class="card" id="ambPz"><div class="mut">Se încarcă pozele...</div></div><div class="card"><textarea id="an" placeholder="Notă (opțional)"></textarea></div><div class="foot"><div><button class="btn gh" data-a="back">← Înapoi</button> <button class="btn gh" data-a="ambret">Retrimite la CTC</button></div><button class="btn" id="ambfinB" disabled data-a="ambfin">Finalizează ambalarea</button></div>`;
+          `<div class="card"><div class="row"><div>${prodTxt(p)}<div class="mut">Ambalare · apărut ${dt(p.ambalare_start)}</div></div><div style="text-align:right"><div class="timer" id="tm"></div><div class="mut" id="tmN">de la apariție</div></div></div></div><div class="card" id="ambPz"><div class="mut">Se încarcă pozele...</div></div><div class="card"><textarea id="an" placeholder="Notă (opțional)"></textarea></div><div class="foot"><div><button class="btn gh" data-a="back">← Înapoi</button> <button class="btn gh" data-a="ambret">Retrimite la CTC</button></div><button class="btn" id="ambfinB" disabled data-a="ambfin">Finalizează ambalarea</button></div>`;
         clearInterval(tmr);
         const f = (n) => String(n).padStart(2, "0"),
           tk = () => {
@@ -2518,7 +2701,9 @@
             if (!el) return;
             const t = Math.max(
               0,
-              Math.floor((Date.now() - new Date(p.ambalare_start)) / 1e3),
+              Math.floor(
+                lucratMs(new Date(p.ambalare_start), Date.now()) / 1e3,
+              ),
             );
             el.textContent =
               f((t / 3600) | 0) +
@@ -2526,6 +2711,8 @@
               f(((t / 60) % 60) | 0) +
               ":" +
               f(t % 60);
+            const nt = $("#tmN");
+            if (nt) nt.textContent = notaProgram(Date.now(), "de la apariție");
           };
         tk();
         tmr = setInterval(tk, 1e3);
@@ -2665,7 +2852,7 @@
    )
    .join("")}</div>
  <div class="kpis cmp" id="ambKpis">${["in_ambalare", "marcat", "ambalat"].map((k) => `<button class="kpi ${ambF === k ? "on" : ""}" data-a="kpia" data-s="${k}"><span class="pill" style="background:${AMB_ST[k][1]};color:${AMB_ST[k][2]}">${AMB_ST[k][0]}</span><b>…</b></button>`).join("")}</div>
- <div class="card fillcard"><input id="sq" placeholder="Caută VIN (parțial, minim 3 caractere)..." autocomplete="off" value="${esc(stQ)}" style="max-width:300px;margin-bottom:8px"><div class="wrap"><div class="list-scroll"><table><thead><tr><th>Nr. crt.</th><th>VIN</th><th>Model</th><th>Culoare</th><th>Stadiu</th><th>De cât timp</th><th>Operator</th><th>Remedieri</th><th></th></tr></thead><tbody id="tb"></tbody></table></div></div><div class="pg-bar"><button class="btn gh sm" id="pgPrev">‹ Anterior</button><span class="mut" id="pgInfo"></span><button class="btn gh sm" id="pgNext">Următor ›</button></div></div>`;
+ <div class="card fillcard"><input id="sq" placeholder="Caută VIN (parțial, minim 3 caractere)..." autocomplete="off" value="${esc(stQ)}" style="max-width:300px;margin-bottom:8px"><div class="wrap"><div class="list-scroll"><table><thead><tr><th>Nr. crt.</th><th>VIN</th><th>Model</th><th>Culoare</th><th>Stadiu</th><th title="Timp lucrat (program de lucru, fără weekend și sărbători). La „Avizat CTC”: timp calendaristic.">De cât timp</th><th>Operator</th><th>Remedieri</th><th></th></tr></thead><tbody id="tb"></tbody></table></div></div><div class="pg-bar"><button class="btn gh sm" id="pgPrev">‹ Anterior</button><span class="mut" id="pgInfo"></span><button class="btn gh sm" id="pgNext">Următor ›</button></div></div>`;
         const now = Date.now();
         let seq = 0;
         /* Contoare pe stadii: câte o cerere "head" (fără rânduri), pe coloană indexată */
@@ -2675,7 +2862,7 @@
               sb
                 .from("asm_produse")
                 .select("id", { count: "exact", head: true }),
-            lateIso = new Date(now - S.prag_alerta_ore * 3600e3).toISOString();
+            lateIso = await dataPrag();
           const [counts, late] = await Promise.all([
             Promise.all(keys.map((k) => cnt().eq("stadiu", k))),
             cnt().eq("stadiu", "in_asamblare").lt("updated_at", lateIso),
@@ -2689,7 +2876,7 @@
             el = $("#stLate");
           if (el)
             el.innerHTML = n
-              ? `<div class="al">⚠️ ${n} produse depășesc pragul de timp în asamblare (> ${S.prag_alerta_ore} h).</div>`
+              ? `<div class="al">⚠️ ${n} produse depășesc pragul de timp în asamblare (> ${S.prag_alerta_ore} h lucrate).</div>`
               : "";
         };
         /* O pagină de produse: filtrare, căutare și paginare pe server */
@@ -2745,7 +2932,7 @@
             pageItems
               .map(
                 (p, i) =>
-                  `<tr><td>${start + i + 1}</td><td class="mono">${esc(p.vin || "—")}</td><td>${esc(p.model || "—")}</td><td>${esc(p.culoare || "—")}</td><td><span class="pill p-${p.stadiu}">${ST[p.stadiu]}</span>${ambPill(p)}</td><td>${dur(now - new Date(ambF === "in_ambalare" && p.ambalare_start ? p.ambalare_start : p.updated_at))}</td><td>${p.operator_curent ? esc(nm(p.operator_curent)) : p.stadiu === "ctc_avizat" && avizatDe[p.id] ? esc(nm(avizatDe[p.id])) : "—"}</td><td>${p.nr_remedieri}</td><td><button class="btn gh sm" data-a="hist" data-id="${p.id}">Istoric</button> ${p.operator_curent ? `<button class="btn gh sm" data-a="elib" data-id="${p.id}">Eliberează</button>` : ""}${p.stadiu === "ctc_avizat" ? `<button class="btn gh sm" data-a="revoc" data-id="${p.id}">Revocă aviz</button>` : ""}</td></tr>`,
+                  `<tr><td>${start + i + 1}</td><td class="mono">${esc(p.vin || "—")}</td><td>${esc(p.model || "—")}</td><td>${esc(p.culoare || "—")}</td><td><span class="pill p-${p.stadiu}">${ST[p.stadiu]}</span>${ambPill(p)}</td><td>${p.stadiu === "ctc_avizat" && !(ambF === "in_ambalare" && p.ambalare_start) ? dur(now - new Date(p.updated_at)) : durL(ambF === "in_ambalare" && p.ambalare_start ? p.ambalare_start : p.updated_at, now)}</td><td>${p.operator_curent ? esc(nm(p.operator_curent)) : p.stadiu === "ctc_avizat" && avizatDe[p.id] ? esc(nm(avizatDe[p.id])) : "—"}</td><td>${p.nr_remedieri}</td><td><button class="btn gh sm" data-a="hist" data-id="${p.id}">Istoric</button> ${p.operator_curent ? `<button class="btn gh sm" data-a="elib" data-id="${p.id}">Eliberează</button>` : ""}${p.stadiu === "ctc_avizat" ? `<button class="btn gh sm" data-a="revoc" data-id="${p.id}">Revocă aviz</button>` : ""}</td></tr>`,
               )
               .join("") ||
             '<tr><td colspan="9" class="mut">Niciun produs.</td></tr>';
@@ -2775,7 +2962,7 @@
               sb
                 .from("asm_produse")
                 .select("id", { count: "exact", head: true }),
-            lateIso = new Date(now - S.prag_alerta_ore * 3600e3).toISOString();
+            lateIso = await dataPrag();
           const [counts, late] = await Promise.all([
             Promise.all(keys.map((k) => cnt().eq("ambalare_stare", k))),
             cnt()
@@ -2791,7 +2978,7 @@
             el = $("#stLateAmb");
           if (el)
             el.innerHTML = n
-              ? `<div class="al">⚠️ ${n} produse depășesc pragul de timp în ambalare (> ${S.prag_alerta_ore} h).</div>`
+              ? `<div class="al">⚠️ ${n} produse depășesc pragul de timp în ambalare (> ${S.prag_alerta_ore} h lucrate).</div>`
               : "";
         };
         loadKpis().catch(() => {});
@@ -2871,7 +3058,7 @@
         }
         const card = (l, v) =>
           `<div><div class="mut">${l}</div><b style="font-size:20px">${v}</b></div>`;
-        return `<div class="kpis" style="margin-top:0;margin-bottom:0">${card("Timp mediu asamblare", asmOk.length ? dur(avg(asmOk) * 1e3) : "—")}${card("Aprobate din prima la CTC", pctPrima)}${card("Timp mediu remediere", remOk.length ? dur(avg(remOk) * 1e3) : "—")}${card("Timp mediu ambalare", ambOk.length ? dur(avg(ambOk) * 1e3) : "—")}${card("Produse ambalate", ambOk.length)}${card("Criteriu cu cele mai multe NOK", esc(topCrit))}</div>`;
+        return `<div class="kpis" style="margin-top:0;margin-bottom:0">${card("Timp mediu asamblare", asmOk.length ? durW(avg(asmOk) * 1e3) : "—")}${card("Aprobate din prima la CTC", pctPrima)}${card("Timp mediu remediere", remOk.length ? durW(avg(remOk) * 1e3) : "—")}${card("Timp mediu ambalare", ambOk.length ? durW(avg(ambOk) * 1e3) : "—")}${card("Produse ambalate", ambOk.length)}${card("Criteriu cu cele mai multe NOK", esc(topCrit))}</div>`;
       }
 
       function isoZi(d) {
@@ -3037,7 +3224,7 @@
             pageItems
               .map(
                 (r, i) =>
-                  `<tr><td>${start + i + 1}</td><td>${fmtDT(r.ended_at)}</td><td>${TIP_ACT[r.tip] || esc(r.tip)}</td><td>${esc(nm(r.user_id))}</td><td class="mono">${esc(r.produs.vin || "—")}</td><td>${esc(r.produs.model || "—")}</td><td>${esc(r.produs.culoare || "—")}</td><td>${r.produs.stadiu ? `<span class="pill p-${r.produs.stadiu}">${ST[r.produs.stadiu]}</span>` : "—"}</td><td>${(r.rezultat || "—").replace("_", " ").toUpperCase()}</td><td>${r.durata_sec ? dur(r.durata_sec * 1e3) : "—"}</td></tr>`,
+                  `<tr><td>${start + i + 1}</td><td>${fmtDT(r.ended_at)}</td><td>${TIP_ACT[r.tip] || esc(r.tip)}</td><td>${esc(nm(r.user_id))}</td><td class="mono">${esc(r.produs.vin || "—")}</td><td>${esc(r.produs.model || "—")}</td><td>${esc(r.produs.culoare || "—")}</td><td>${r.produs.stadiu ? `<span class="pill p-${r.produs.stadiu}">${ST[r.produs.stadiu]}</span>` : "—"}</td><td>${(r.rezultat || "—").replace("_", " ").toUpperCase()}</td><td>${r.durata_sec ? durW(r.durata_sec * 1e3) : "—"}</td></tr>`,
               )
               .join("") ||
             '<tr><td colspan="10" class="mut">Nicio înregistrare.</td></tr>';
@@ -3173,7 +3360,7 @@
             culoare: r.produs.culoare || "—",
             stadiu: r.produs.stadiu ? ST[r.produs.stadiu] : "—",
             rezultat: (r.rezultat || "—").replace("_", " ").toUpperCase(),
-            durata: r.durata_sec ? dur(r.durata_sec * 1e3) : "—",
+            durata: r.durata_sec ? durW(r.durata_sec * 1e3) : "—",
           }),
         );
         const buf = await wb.xlsx.writeBuffer();
@@ -3512,7 +3699,7 @@
         o.className = "ov";
         o.innerHTML = `<div class="ist-m"><div class="row"><h3 style="margin:0">Istoric produs</h3><div><button class="btn gh sm" data-a="pdf" data-id="${id}">Fișă PDF</button> <button class="btn gh sm" data-a="close">Închide</button></div></div><p class="mut">Situație: <b>${esc(sit)}</b>${nrx.c ? ` · 📷 ${nrx.c} poze` : ""}</p>
  <div class="ist-g${nrx.h ? "" : " s"}"><div><div class="tl">${(ev.data || []).map((x) => `<div>${dt(x.created_at)} · <b>${esc(EV[x.tip] || x.tip)}</b> · ${esc(nm(x.user_id))}${x.detalii ? ` <span class="mut">(${esc(x.detalii)})</span>` : ""}</div>`).join("") || "<div>Fără evenimente.</div>"}</div>
- <h4>Durate etape</h4><div class="tl">${(et.data || []).map((x) => `<div>${x.tip} · ${esc(nm(x.user_id))} · ${x.ended_at ? dur(x.durata_sec * 1e3) + " (" + (x.rezultat || "") + ")" : "în curs"}</div>`).join("")}${pv.data && pv.data.ambalare_stare === "in_ambalare" ? `<div>ambalare · în curs de la ${dt(pv.data.ambalare_start)}</div>` : ""}</div></div>${nrx.h ? `<div>${nrx.h}</div>` : ""}</div></div>`;
+ <h4>Durate etape</h4><div class="tl">${(et.data || []).map((x) => `<div>${x.tip} · ${esc(nm(x.user_id))} · ${x.ended_at ? durW(x.durata_sec * 1e3) + " (" + (x.rezultat || "") + ")" : "în curs"}</div>`).join("")}${pv.data && pv.data.ambalare_stare === "in_ambalare" ? `<div>ambalare · în curs de la ${dt(pv.data.ambalare_start)}</div>` : ""}</div></div>${nrx.h ? `<div>${nrx.h}</div>` : ""}</div></div>`;
         document.body.appendChild(o);
         istInit(o);
         istAmbInit(o);
@@ -4414,7 +4601,34 @@
       function vSet(c) {
         const f = (k, l, ty = "number") =>
           `<div style="margin-bottom:10px"><div class="mut">${l}</div>${ty === "checkbox" ? `<input type="checkbox" style="width:auto" data-c="set" data-f="${k}" ${S[k] ? "checked" : ""}>` : `<input type="number" min="1" data-c="set" data-f="${k}" value="${S[k]}">`}</div>`;
-        c.innerHTML = `<div class="card" style="max-width:420px">${f("max_in_lucru", "Produse simultane per utilizator")}${f("prag_alerta_ore", "Alertă produs în lucru (ore)")}${f("poze_obligatorii", "Poză obligatorie la fiecare neregulă", "checkbox")}</div>`;
+        const tm = (k, l) =>
+          `<div style="margin-bottom:10px"><div class="mut">${l}</div><input type="time" data-c="set" data-f="${k}" value="${esc(String(S[k] || "").slice(0, 5))}"></div>`;
+        c.innerHTML = `<div class="card" style="max-width:420px">${f("max_in_lucru", "Produse simultane per utilizator")}${f("prag_alerta_ore", "Alertă produs în lucru (ore lucrătoare)")}${f("poze_obligatorii", "Poză obligatorie la fiecare neregulă", "checkbox")}</div>
+<div class="card" style="max-width:420px;margin-top:12px"><b>Program de lucru</b><div class="mut" style="margin:4px 0 10px">Luni–vineri, ora României. Timpul produselor se numără doar în acest interval, fără weekenduri și zile libere legale.</div>${tm("ora_start", "Început program")}${tm("ora_sfarsit", "Sfârșit program")}</div>
+<div class="card" style="max-width:420px;margin-top:12px"><b>Zile libere legale</b><div class="mut" style="margin:4px 0 10px">Zilele din listă nu se numără în timpul de lucru. Adaugă și zilele libere acordate suplimentar (punți).</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"><input type="date" id="zlData" style="max-width:170px"><input id="zlDen" placeholder="Denumire (opțional)" style="flex:1;min-width:140px"><button class="btn" data-a="zladd">Adaugă</button></div><div id="zlList" class="mut">Se încarcă...</div></div>`;
+        zlRender();
+      }
+      async function zlRender() {
+        const el = $("#zlList");
+        if (!el) return;
+        const an = new Date().getFullYear();
+        const { data, error } = await sb
+          .from("asm_zile_libere")
+          .select("data,denumire")
+          .gte("data", an + "-01-01")
+          .order("data");
+        if (!$("#zlList")) return;
+        if (error) {
+          el.textContent = "Eroare la încărcarea zilelor libere.";
+          return;
+        }
+        el.innerHTML =
+          (data || [])
+            .map(
+              (r) =>
+                `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid #e5e7eb"><span>${fmtDMY(r.data)}${r.denumire ? " · " + esc(r.denumire) : ""}</span><button class="btn gh sm" data-a="zldel" data-d="${r.data}">Șterge</button></div>`,
+            )
+            .join("") || "Nicio zi liberă introdusă.";
       }
       boot0();
     </script>
