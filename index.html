@@ -3314,10 +3314,11 @@
            `<option value="${k}" ${staTip === k ? "selected" : ""}>${TIP_ACT[k]}</option>`,
        )
        .join("")}</select></div>
-     <div style="max-width:130px;flex:1 1 120px"><div class="mut" style="margin-bottom:1px">Rezultat</div><select id="staRezultat"><option value="">Toate</option><option value="ok" ${staRezultat === "ok" ? "selected" : ""}>OK</option><option value="nok" ${staRezultat === "nok" ? "selected" : ""}>NOK</option><option value="retrimis_ctc" ${staRezultat === "retrimis_ctc" ? "selected" : ""}>Retrimis CTC</option></select></div>
+     <div style="max-width:130px;flex:1 1 120px"><div class="mut" style="margin-bottom:1px">Rezultat</div><select id="staRezultat"><option value="">Toate</option><option value="ok" ${staRezultat === "ok" ? "selected" : ""}>OK</option><option value="nereguli" ${staRezultat === "nereguli" ? "selected" : ""}>Nereguli (NOK)</option><option value="retrimis_ctc" ${staRezultat === "retrimis_ctc" ? "selected" : ""}>Retrimis CTC</option></select></div>
      <div style="max-width:200px;flex:1 1 160px"><div class="mut" style="margin-bottom:1px">VIN (parțial)</div><input id="staVin" placeholder="Caută VIN..." value="${esc(staVin)}"></div>
      <div style="flex:1 1 140px;max-width:170px"><button class="btn gh sm" id="staExport" style="width:100%">⬇ Exportă Excel</button></div>
       <div style="flex:0 0 auto"><button class="btn gh sm" id="staIndBtn">📊 Indicatori</button></div>
+      <div style="flex:0 0 auto"><button class="btn gh sm" id="staReset" title="Revino la filtrele inițiale: Toate / Toți, ultimele 30 de zile">↺ Resetează filtrele</button></div>
    </div>
    <div class="wrap"><div class="list-scroll" id="staListScroll" style="max-height:none"><table class="tbl-sta"><thead><tr><th>Nr.</th><th>Data</th><th>Tip</th><th>Operator</th><th>VIN</th><th>Model</th><th>Culoare</th><th>Stadiu</th><th>Rez.</th><th>Durată</th></tr></thead><tbody id="tbSta"></tbody></table></div></div>
    <div class="pg-bar"><button class="btn gh sm" id="staPrev">‹ Anterior</button><span class="mut" id="staInfo"></span><button class="btn gh sm" id="staNext">Următor ›</button></div>
@@ -3417,6 +3418,35 @@
           draw();
         };
         $("#staExport").onclick = () => exportStatisticiExcel();
+        $("#staReset").onclick = () => {
+          const zi = isoZi(new Date()),
+            de = isoZi(new Date(Date.now() - 30 * 864e5)),
+            perioadaSchimbata = staDe !== de || staPana !== zi;
+          staModel = staCuloare = staStadiu = staOperator = "";
+          staTip = staRezultat = staVin = "";
+          staPage = 1;
+          [
+            "staModel",
+            "staCuloare",
+            "staStadiu",
+            "staOperator",
+            "staTip",
+            "staRezultat",
+            "staVin",
+          ].forEach((id) => {
+            const el = $("#" + id);
+            if (el) el.value = "";
+          });
+          if (perioadaSchimbata) {
+            staDe = de;
+            staPana = zi;
+            $("#staDe").value = staDe;
+            $("#staDeTxt").value = fmtDMY(staDe);
+            $("#staPana").value = staPana;
+            $("#staPanaTxt").value = fmtDMY(staPana);
+            reload();
+          } else draw();
+        };
         await reload();
         let indLoaded = false;
         const loadInd = () =>
@@ -4731,7 +4761,7 @@
 <div class="card"><div class="stt">Program de lucru</div><div class="mut std">Luni–vineri, ora României. Timpul produselor se numără doar în acest interval, fără weekenduri și zile libere legale.</div>
 <div class="f2">${tm("ora_start", "Început program")}${tm("ora_sfarsit", "Sfârșit program")}</div></div>
 </div>
-<div class="card"><div class="stt">Zile libere legale</div><div class="mut std">Zilele din listă nu se numără în timpul de lucru. Adaugă și zilele libere acordate suplimentar.</div>
+<div class="card"><div class="stt">Zile libere legale</div><div class="mut std">Zilele din listă nu se numără în timpul de lucru. Adaugă și zilele libere acordate suplimentar (punți).</div>
 <div class="zlh"><input type="date" id="zlData"><input id="zlDen" placeholder="Denumire (opțional)"><button class="btn" data-a="zladd">Adaugă</button></div>
 <div id="zlList"><div class="mut">Se încarcă...</div></div></div>
 </div>`;
