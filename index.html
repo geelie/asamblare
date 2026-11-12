@@ -1166,6 +1166,121 @@
         display: block;
         margin: 0 auto 14px auto; /* centrat pe aceeași axă cu fereastra de login */
       }
+      /* Setări: carduri (pe telefon/tabletă: o singură coloană, ca înainte) */
+      .setg {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+      .setg .card {
+        margin: 0;
+      }
+      .setg .setl {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .setg .stt {
+        font-size: 15px;
+        font-weight: 700;
+      }
+      .setg .std {
+        margin: 2px 0 14px;
+      }
+      .setg .f2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        align-items: end;
+      }
+      .setg .sf {
+        min-width: 0;
+      }
+      .setg .sf .mut {
+        margin-bottom: 4px;
+      }
+      .setg .zlh {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 14px;
+      }
+      .setg .zlh input[type="date"] {
+        width: 170px;
+        flex: none;
+      }
+      .setg .zlh input:not([type="date"]) {
+        flex: 1;
+        min-width: 0;
+      }
+      .setg #zlList {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+        gap: 0 20px;
+        align-content: start;
+        min-height: 120px;
+      }
+      .setg .zli {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 0;
+        border-bottom: 1px solid var(--line);
+      }
+      @media (max-width: 480px) {
+        .setg .f2 {
+          grid-template-columns: 1fr;
+        }
+        .setg .zlh {
+          flex-wrap: wrap;
+        }
+        .setg .zlh input[type="date"] {
+          width: 100%;
+        }
+      }
+      /* Taburile Admin pe PC (ecran lat + mouse): lățime completă, fără scroll orizontal.
+         Nu se aplică pe telefoane și tablete. */
+      @media (min-width: 1200px) and (hover: hover) and (pointer: fine) {
+        #c.wide {
+          max-width: none;
+        }
+        body.wideTab nav {
+          padding: 0 16px;
+        }
+        .setg {
+          grid-template-columns: minmax(340px, 480px) minmax(0, 1fr);
+          align-items: start;
+        }
+        .setg #zlList {
+          max-height: calc(100vh - 340px);
+          overflow-y: auto;
+        }
+        .tbl-sta th,
+        .tbl-sta td {
+          white-space: nowrap;
+          word-break: normal;
+          padding: 4px 8px;
+        }
+        .tbl-sta .mono {
+          font-size: 12.5px;
+        }
+        .chkg {
+          display: grid;
+          grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+          gap: 16px;
+          align-items: start;
+        }
+        .chkg .card {
+          margin: 0;
+        }
+        .chkcols {
+          columns: 2 360px;
+          column-gap: 20px;
+        }
+        .chkcols > div {
+          break-inside: avoid;
+        }
+      }
     </style>
   </head>
   <body>
@@ -1761,6 +1876,11 @@
         F = null;
         clearInterval(tmr);
         tab = t;
+        const wide = ["stadii", "checklist", "statistici", "setari"].includes(
+          t,
+        );
+        $("#c").classList.toggle("wide", wide);
+        document.body.classList.toggle("wideTab", wide);
         document
           .querySelectorAll("nav button")
           .forEach((b) => b.classList.toggle("on", b.dataset.t === t));
@@ -4378,7 +4498,7 @@
         });
         const row = (x, showModel) =>
           `<div class="crit-row"><input type="number" data-c="sab" data-f="ordine" data-id="${x.id}" value="${x.ordine}">${showModel ? `<input data-c="sab" data-f="model" data-id="${x.id}" value="${esc(x.model || "")}" placeholder="Model" list="dl-modele" autocomplete="off">` : ""}<input data-c="sab" data-f="text" data-id="${x.id}" value="${esc(x.text)}"><label><input type="checkbox" data-c="sab" data-f="activ" data-id="${x.id}" ${x.activ ? "checked" : ""}> activ</label><button class="btn gh sm" data-a="delsab" data-id="${x.id}" title="Șterge (istoricul rămâne)">✕</button></div>`;
-        c.innerHTML = `<div class="card"><h3 style="margin-top:0">Criterii asamblare — pe model</h3>
+        c.innerHTML = `<div class="chkg"><div class="card"><h3 style="margin-top:0">Criterii asamblare — pe model</h3>
  <div class="add-row">
    <input id="nm-asamblare" list="dl-modele" placeholder="Model..." value="${esc(ultimulModel)}" autocomplete="off">
    <input id="ns-asamblare" list="dl-crit-asamblare" placeholder="Criteriu nou..." autocomplete="off">
@@ -4386,7 +4506,7 @@
    <input type="file" id="file-imp-crit" accept=".xlsx,.xls,.csv" style="display:none">
    <button class="btn" data-a="addsab" data-t="asamblare">Adaugă</button>
  </div>
- ${
+ <div class="chkcols">${
    groups
      .map((g) => {
        const open = modeleExpandate.has(g.key);
@@ -4396,7 +4516,7 @@
  </div>`;
      })
      .join("") || '<div class="mut">Niciun criteriu de asamblare încă.</div>'
- }
+ }</div>
  </div>
  <div class="card"><h3 style="margin-top:0">Criterii CTC</h3>
  <div class="add-row">
@@ -4405,7 +4525,7 @@
  </div>
  <button class="model-toggle" data-a="togctc" style="display:block;margin:2px 0 8px" title="${ctcExpandat ? "Restrânge" : "Expandează"}">${ctcExpandat ? "− Criterii" : "+ Criterii"}</button>
  ${ctcExpandat ? ctcR.map((x) => row(x, false)).join("") || '<div class="mut">Niciun criteriu.</div>' : ""}
- </div>
+ </div></div>
  <datalist id="dl-modele"></datalist>
  <datalist id="dl-crit-asamblare">${[
    ...new Set(asmR.map((x) => x.text.trim()).filter(Boolean)),
@@ -4599,13 +4719,22 @@
         }
       });
       function vSet(c) {
-        const f = (k, l, ty = "number") =>
-          `<div style="margin-bottom:10px"><div class="mut">${l}</div>${ty === "checkbox" ? `<input type="checkbox" style="width:auto" data-c="set" data-f="${k}" ${S[k] ? "checked" : ""}>` : `<input type="number" min="1" data-c="set" data-f="${k}" value="${S[k]}">`}</div>`;
+        const f = (k, l) =>
+          `<div class="sf"><div class="mut">${l}</div><input type="number" min="1" data-c="set" data-f="${k}" value="${S[k]}"></div>`;
         const tm = (k, l) =>
-          `<div style="margin-bottom:10px"><div class="mut">${l}</div><input type="time" data-c="set" data-f="${k}" value="${esc(String(S[k] || "").slice(0, 5))}"></div>`;
-        c.innerHTML = `<div class="card" style="max-width:420px">${f("max_in_lucru", "Produse simultane per utilizator")}${f("prag_alerta_ore", "Alertă produs în lucru (ore lucrătoare)")}${f("poze_obligatorii", "Poză obligatorie la fiecare neregulă", "checkbox")}</div>
-<div class="card" style="max-width:420px;margin-top:12px"><b>Program de lucru</b><div class="mut" style="margin:4px 0 10px">Luni–vineri, ora României. Timpul produselor se numără doar în acest interval, fără weekenduri și zile libere legale.</div>${tm("ora_start", "Început program")}${tm("ora_sfarsit", "Sfârșit program")}</div>
-<div class="card" style="max-width:420px;margin-top:12px"><b>Zile libere legale</b><div class="mut" style="margin:4px 0 10px">Zilele din listă nu se numără în timpul de lucru. Adaugă și zilele libere acordate suplimentar (punți).</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"><input type="date" id="zlData" style="max-width:170px"><input id="zlDen" placeholder="Denumire (opțional)" style="flex:1;min-width:140px"><button class="btn" data-a="zladd">Adaugă</button></div><div id="zlList" class="mut">Se încarcă...</div></div>`;
+          `<div class="sf"><div class="mut">${l}</div><input type="time" data-c="set" data-f="${k}" value="${esc(String(S[k] || "").slice(0, 5))}"></div>`;
+        c.innerHTML = `<div class="setg">
+<div class="setl">
+<div class="card"><div class="stt">Setări generale</div><div class="mut std">Limite și reguli de lucru.</div>
+<div class="f2">${f("max_in_lucru", "Produse simultane per utilizator")}${f("prag_alerta_ore", "Alertă produs în lucru (ore lucrătoare)")}</div>
+<label style="display:flex;align-items:center;gap:8px;margin-top:14px"><input type="checkbox" style="width:auto" data-c="set" data-f="poze_obligatorii" ${S.poze_obligatorii ? "checked" : ""}> Poză obligatorie la fiecare neregulă</label></div>
+<div class="card"><div class="stt">Program de lucru</div><div class="mut std">Luni–vineri, ora României. Timpul produselor se numără doar în acest interval, fără weekenduri și zile libere legale.</div>
+<div class="f2">${tm("ora_start", "Început program")}${tm("ora_sfarsit", "Sfârșit program")}</div></div>
+</div>
+<div class="card"><div class="stt">Zile libere legale</div><div class="mut std">Zilele din listă nu se numără în timpul de lucru. Adaugă și zilele libere acordate suplimentar (punți).</div>
+<div class="zlh"><input type="date" id="zlData"><input id="zlDen" placeholder="Denumire (opțional)"><button class="btn" data-a="zladd">Adaugă</button></div>
+<div id="zlList"><div class="mut">Se încarcă...</div></div></div>
+</div>`;
         zlRender();
       }
       async function zlRender() {
@@ -4619,16 +4748,17 @@
           .order("data");
         if (!$("#zlList")) return;
         if (error) {
-          el.textContent = "Eroare la încărcarea zilelor libere.";
+          el.innerHTML =
+            '<div class="mut">Eroare la încărcarea zilelor libere.</div>';
           return;
         }
         el.innerHTML =
           (data || [])
             .map(
               (r) =>
-                `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid #e5e7eb"><span>${fmtDMY(r.data)}${r.denumire ? " · " + esc(r.denumire) : ""}</span><button class="btn gh sm" data-a="zldel" data-d="${r.data}">Șterge</button></div>`,
+                `<div class="zli"><span>${fmtDMY(r.data)}${r.denumire ? " · " + esc(r.denumire) : ""}</span><button class="btn gh sm" data-a="zldel" data-d="${r.data}">Șterge</button></div>`,
             )
-            .join("") || "Nicio zi liberă introdusă.";
+            .join("") || '<div class="mut">Nicio zi liberă introdusă.</div>';
       }
       boot0();
     </script>
