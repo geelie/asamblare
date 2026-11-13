@@ -1512,11 +1512,7 @@
           b = tzParts(e0),
           last = Date.UTC(b.year, b.month - 1, b.day);
         let tot = 0;
-        for (
-          let c = Date.UTC(a.year, a.month - 1, a.day);
-          c <= last;
-          c += 864e5
-        ) {
+        for (let c = Date.UTC(a.year, a.month - 1, a.day); c <= last; c += 864e5) {
           const t = new Date(c),
             y = t.getUTCFullYear(),
             m = t.getUTCMonth() + 1,
@@ -1540,11 +1536,7 @@
       function urmDeschidere(ms) {
         const [[h1, m1]] = prog(),
           a = tzParts(ms);
-        for (
-          let i = 0, c = Date.UTC(a.year, a.month - 1, a.day);
-          i < 400;
-          i++, c += 864e5
-        ) {
+        for (let i = 0, c = Date.UTC(a.year, a.month - 1, a.day); i < 400; i++, c += 864e5) {
           const t = new Date(c),
             y = t.getUTCFullYear(),
             m = t.getUTCMonth() + 1,
@@ -1559,10 +1551,7 @@
         if (inProgram(ms)) return "timp lucrat " + suf;
         const o = urmDeschidere(ms);
         if (!o) return "⏸ în afara programului";
-        const z = new Date(o).toLocaleDateString("ro-RO", {
-            weekday: "long",
-            timeZone: TZ,
-          }),
+        const z = new Date(o).toLocaleDateString("ro-RO", { weekday: "long", timeZone: TZ }),
           h = new Date(o).toLocaleTimeString("ro-RO", {
             hour: "2-digit",
             minute: "2-digit",
@@ -1574,18 +1563,14 @@
       /* durată lucrată: ore + minute (o zi lucrătoare nu are 24 h, deci fără „zile”) */
       function durW(ms) {
         const m = Math.floor(ms / 6e4);
-        return m < 60
-          ? m + " min"
-          : Math.floor(m / 60) + " h " + (m % 60) + " min";
+        return m < 60 ? m + " min" : Math.floor(m / 60) + " h " + (m % 60) + " min";
       }
       /* pentru produse în lucru: timp lucrat + (dacă a trecut cel puțin o zi) vechimea calendaristică */
       function durL(startIso, endMs) {
         const s = +new Date(startIso),
           e = endMs || Date.now(),
           c = e - s;
-        return (
-          durW(lucratMs(s, e)) + (c >= 864e5 ? " · vechime " + dur(c) : "")
-        );
+        return durW(lucratMs(s, e)) + (c >= 864e5 ? " · vechime " + dur(c) : "");
       }
       async function incarcaZl() {
         const { data, error } = await sb.from("asm_zile_libere").select("data");
@@ -1599,9 +1584,7 @@
           p_ore: S.prag_alerta_ore,
         });
         if (error || !data)
-          return new Date(
-            Date.now() - S.prag_alerta_ore * 3600e3,
-          ).toISOString();
+          return new Date(Date.now() - S.prag_alerta_ore * 3600e3).toISOString();
         return new Date(data).toISOString();
       }
       function toast(m, e) {
@@ -1913,13 +1896,7 @@
         F = null;
         clearInterval(tmr);
         tab = t;
-        const wide = [
-          "stadii",
-          "checklist",
-          "statistici",
-          "nereguli",
-          "setari",
-        ].includes(t);
+        const wide = ["stadii", "checklist", "statistici", "nereguli", "setari"].includes(t);
         $("#c").classList.toggle("wide", wide);
         document.body.classList.toggle("wideTab", wide);
         document
@@ -2206,21 +2183,11 @@
           const r = await sb
             .from("asm_setari")
             .update({
-              [t.dataset.f]:
-                t.type === "checkbox"
-                  ? t.checked
-                  : t.type === "time"
-                    ? t.value
-                    : +t.value,
+              [t.dataset.f]: t.type === "checkbox" ? t.checked : t.type === "time" ? t.value : +t.value,
             })
             .eq("id", 1);
           if (r.error) return toast(r.error.message, 1);
-          S[t.dataset.f] =
-            t.type === "checkbox"
-              ? t.checked
-              : t.type === "time"
-                ? t.value
-                : +t.value;
+          S[t.dataset.f] = t.type === "checkbox" ? t.checked : t.type === "time" ? t.value : +t.value;
           toast("Salvat.");
         }
       });
@@ -2501,9 +2468,7 @@
             if (el) {
               const s = Math.max(
                   0,
-                  Math.floor(
-                    lucratMs(new Date(e.started_at), Date.now()) / 1e3,
-                  ),
+                  Math.floor(lucratMs(new Date(e.started_at), Date.now()) / 1e3),
                 ),
                 f = (n) => String(n).padStart(2, "0");
               el.textContent =
@@ -2513,8 +2478,7 @@
                 ":" +
                 f(s % 60);
               const nt = $("#tmN");
-              if (nt)
-                nt.textContent = notaProgram(Date.now(), "de la preluare");
+              if (nt) nt.textContent = notaProgram(Date.now(), "de la preluare");
             }
           };
           tk();
@@ -2852,7 +2816,10 @@
           () =>
             document
               .querySelectorAll(".ambt")
-              .forEach((el) => (el.textContent = durL(el.dataset.t))),
+              .forEach(
+                (el) =>
+                  (el.textContent = durL(el.dataset.t)),
+              ),
           3e4,
         );
         await load();
@@ -2877,9 +2844,7 @@
             if (!el) return;
             const t = Math.max(
               0,
-              Math.floor(
-                lucratMs(new Date(p.ambalare_start), Date.now()) / 1e3,
-              ),
+              Math.floor(lucratMs(new Date(p.ambalare_start), Date.now()) / 1e3),
             );
             el.textContent =
               f((t / 3600) | 0) +
@@ -3600,15 +3565,7 @@
         nrView = "sumar",
         nrGrp = "neregula",
         nrPage = 1,
-        nrF = {
-          model: "",
-          culoare: "",
-          tip: "",
-          op: "",
-          status: "",
-          crit: "",
-          q: "",
-        };
+        nrF = { model: "", culoare: "", tip: "", op: "", status: "", crit: "", q: "" };
       const NR_PER = 50;
       let nrChartOpen = false;
       const pctN = (v) => (v * 100).toFixed(1).replace(".", ",") + "%";
@@ -3619,21 +3576,15 @@
       /* neregulă concretă = criteriul din checklist; în afara checklist-ului: descrierea normalizată */
       const nrKey = (r) =>
         r.crit ||
-        "Altele · " +
-          (r.desc
-            ? r.desc.toLowerCase().replace(/\s+/g, " ")
-            : "fără descriere");
+        "Altele · " + (r.desc ? r.desc.toLowerCase().replace(/\s+/g, " ") : "fără descriere");
       const nrGval = (r, g) =>
-        g === "neregula"
-          ? nrKey(r)
-          : g === "model"
-            ? r.model
-            : g === "operator"
-              ? nm(r.uid)
-              : g === "luna"
-                ? r.luna
-                : TIP_ACT[r.tip] || r.tip || "—";
-      const nrFlt = ["model", "culoare", "tip", "op"];
+        g === "neregula" ? nrKey(r) : g === "model" ? r.model : g === "operator" ? nm(r.uid) : g === "luna" ? r.luna : TIP_ACT[r.tip] || r.tip || "—";
+      const nrFlt = [
+        "model",
+        "culoare",
+        "tip",
+        "op",
+      ];
       function nrApply() {
         const f = nrF,
           q = f.q.trim().toLowerCase();
@@ -3665,21 +3616,7 @@
         nrFiltered.forEach((r) => {
           const k = nrGval(r, g);
           let o = m.get(k);
-          if (!o)
-            m.set(
-              k,
-              (o = {
-                k,
-                n: 0,
-                p: new Set(),
-                a: 0,
-                c: 0,
-                d: 0,
-                r: 0,
-                t: 0,
-                tn: 0,
-              }),
-            );
+          if (!o) m.set(k, (o = { k, n: 0, p: new Set(), a: 0, c: 0, d: 0, r: 0, t: 0, tn: 0 }));
           o.n++;
           o.p.add(r.pid);
           r.tip === "ctc" ? o.c++ : o.a++;
@@ -3695,14 +3632,7 @@
           tot = new Set();
         nrDenF().forEach((d) => {
           tot.add(d.pid);
-          const k =
-            g === "model"
-              ? d.model
-              : g === "operator"
-                ? nm(d.uid)
-                : g === "luna"
-                  ? d.luna
-                  : TIP_ACT[d.tip] || d.tip;
+          const k = g === "model" ? d.model : g === "operator" ? nm(d.uid) : g === "luna" ? d.luna : TIP_ACT[d.tip] || d.tip;
           if (!den.has(k)) den.set(k, new Set());
           den.get(k).add(d.pid);
         });
@@ -3715,9 +3645,7 @@
           .sort((x, y) => (g === "luna" ? (x.k < y.k ? -1 : 1) : y.n - x.n));
       }
       function nrMatrice() {
-        const models = [...new Set(nrFiltered.map((r) => r.model))].sort(
-            (a, b) => a.localeCompare(b, "ro"),
-          ),
+        const models = [...new Set(nrFiltered.map((r) => r.model))].sort((a, b) => a.localeCompare(b, "ro")),
           m = new Map();
         nrFiltered.forEach((r) => {
           const k = nrKey(r);
@@ -3747,8 +3675,7 @@
       function nrChartHtml() {
         if (!nrChartOpen) return nrChartHd();
         const ms = nrMonths();
-        if (!ms.length)
-          return nrChartHd() + '<div class="mut">Perioadă invalidă.</div>';
+        if (!ms.length) return nrChartHd() + '<div class="mut">Perioadă invalidă.</div>';
         const d = {};
         ms.forEach((k) => (d[k] = { a: 0, c: 0 }));
         nrFiltered.forEach((r) => {
@@ -3784,15 +3711,13 @@
               (o) =>
                 `<tr ${click ? `data-a="nrdrill" data-g="${nrGrp}" data-k="${esc(o.k)}" style="cursor:pointer" title="Vezi detaliul"` : ""}><td class="wr">${esc(o.k)}</td><td><b>${o.n}</b></td><td style="min-width:110px">${nrBar(o.n, mx)}</td><td>${o.np}</td><td>${o.den ? pctN(o.np / o.den) : "—"}</td><td>${o.a}</td><td>${o.c}</td><td>${o.d}</td><td>${o.r}</td><td>${o.tn ? durW(o.t / o.tn) : "—"}</td></tr>`,
             )
-            .join("") ||
-          '<tr><td colspan="10" class="mut">Nicio neregulă pentru perioada și filtrele alese.</td></tr>'
+            .join("") || '<tr><td colspan="10" class="mut">Nicio neregulă pentru perioada și filtrele alese.</td></tr>'
         }</tbody></table>`;
       }
       function nrMatriceHtml() {
         const { models, rows } = nrMatrice(),
           mx = Math.max(1, ...rows.flatMap((o) => Object.values(o.by)));
-        if (!rows.length)
-          return '<div class="mut" style="padding:8px">Nicio neregulă pentru perioada și filtrele alese.</div>';
+        if (!rows.length) return '<div class="mut" style="padding:8px">Nicio neregulă pentru perioada și filtrele alese.</div>';
         return `<table class="tbl-sta"><thead><tr><th>Neregulă</th>${models.map((m) => `<th>${esc(m)}</th>`).join("")}<th>Total</th></tr></thead><tbody>${rows
           .map(
             (o) =>
@@ -3812,9 +3737,7 @@
           pages = Math.max(1, Math.ceil(total / NR_PER));
         nrPage = Math.min(Math.max(1, nrPage), pages);
         const st = (nrPage - 1) * NR_PER;
-        $("#nrInfoPg").textContent = total
-          ? `Pagina ${nrPage} din ${pages} (${total} nereguli)`
-          : "Nicio neregulă";
+        $("#nrInfoPg").textContent = total ? `Pagina ${nrPage} din ${pages} (${total} nereguli)` : "Nicio neregulă";
         $("#nrPrev").disabled = nrPage <= 1;
         $("#nrNext").disabled = nrPage >= pages;
         return `<table class="tbl-sta"><thead><tr><th>Nr.</th><th>Data</th><th>Model</th><th>Culoare</th><th>VIN</th><th>Găsită la</th><th>Operator</th><th>Neregulă</th><th>Descriere</th><th>Status</th><th>Remediat</th><th title="înainte / după">Poze</th><th></th></tr></thead><tbody>${
@@ -3824,38 +3747,36 @@
               (r, i) =>
                 `<tr><td>${st + i + 1}</td><td>${fmtDT(r.cre)}</td><td>${esc(r.model)}</td><td>${esc(r.culoare)}</td><td class="mono">${esc(r.vin || "—")}</td><td>${TIP_ACT[r.tip] || "—"}</td><td>${esc(nm(r.uid))}</td><td class="wr">${esc(r.crit || "—")}</td><td class="wr">${esc(r.desc || "—")}</td><td>${nrPill(r.status)}</td><td>${r.rem ? fmtDT(r.rem) + " · " + esc(nm(r.remDe)) : "—"}</td><td>${r.pin} / ${r.pdup}</td><td><button class="btn gh sm" data-a="hist" data-id="${r.pid}">Istoric</button></td></tr>`,
             )
-            .join("") ||
-          '<tr><td colspan="13" class="mut">Nicio neregulă pentru perioada și filtrele alese.</td></tr>'
+            .join("") || '<tr><td colspan="13" class="mut">Nicio neregulă pentru perioada și filtrele alese.</td></tr>'
         }</tbody></table>`;
       }
+      /* Înălțimea zonei derulabile = spațiul liber până la marginea de jos a ferestrei.
+         Dacă tot conținutul încape, nu apare nicio bară de derulare. */
       function fitNrScroll() {
-        const el = document.getElementById("nrScroll");
-        if (!el) return;
+        const el = document.getElementById("nrScroll"),
+          main = document.getElementById("c");
+        if (!el || !main) return;
         el.style.height = "auto";
-        const slack =
-          window.innerHeight - document.documentElement.scrollHeight;
-        el.style.height = Math.max(160, el.clientHeight + slack - 8) + "px";
+        const rect = el.getBoundingClientRect(),
+          mainRect = main.getBoundingClientRect(),
+          chrome = el.offsetHeight - el.clientHeight, // borduri
+          natural = el.scrollHeight + chrome, // înălțimea necesară pentru toate rândurile
+          top = rect.top + window.scrollY,
+          below = mainRect.bottom - rect.bottom, // spațiul de sub zonă (padding card + main)
+          avail = window.innerHeight - top - below - 12;
+        el.style.height = Math.max(160, Math.min(natural, avail)) + "px";
       }
       window.addEventListener("resize", () => {
         if (tab === "nereguli") fitNrScroll();
       });
       function nrSyncUI() {
-        [
-          ["nrModel", "model"],
-          ["nrCul", "culoare"],
-          ["nrTip", "tip"],
-          ["nrOp", "op"],
-          ["nrSt", "status"],
-          ["nrCrit", "crit"],
-        ].forEach(([id, k]) => {
+        [["nrModel", "model"], ["nrCul", "culoare"], ["nrTip", "tip"], ["nrOp", "op"], ["nrSt", "status"], ["nrCrit", "crit"]].forEach(([id, k]) => {
           const el = $("#" + id);
           if (el) el.value = nrF[k];
         });
         if ($("#nrQ")) $("#nrQ").value = nrF.q;
         if ($("#nrGrp")) $("#nrGrp").value = nrGrp;
-        document
-          .querySelectorAll("[data-a=nrview]")
-          .forEach((b) => b.classList.toggle("gh", b.dataset.v !== nrView));
+        document.querySelectorAll("[data-a=nrview]").forEach((b) => b.classList.toggle("gh", b.dataset.v !== nrView));
       }
       function nrDraw() {
         if (!$("#nrTbl")) return;
@@ -3863,104 +3784,40 @@
         const dn = nrDenF(),
           pa = new Set(nrFiltered.map((r) => r.pid)).size,
           pv = new Set(dn.map((d) => d.pid)).size;
-        $("#nrInfo").textContent =
-          `${nrFiltered.length} nereguli · ${pa} produse afectate din ${pv} verificate${pv ? " (" + pctN(pa / pv) + ")" : ""}`;
+        $("#nrInfo").textContent = `${nrFiltered.length} nereguli · ${pa} produse afectate din ${pv} verificate${pv ? " (" + pctN(pa / pv) + ")" : ""}`;
         $("#nrChart").innerHTML = nrChartHtml();
         $("#nrGrpW").style.display = nrView === "sumar" ? "" : "none";
         $("#nrPager").style.display = nrView === "detaliu" ? "flex" : "none";
-        $("#nrTbl").innerHTML =
-          nrView === "sumar"
-            ? nrSumarHtml()
-            : nrView === "matrice"
-              ? nrMatriceHtml()
-              : nrDetaliuHtml();
+        $("#nrTbl").innerHTML = nrView === "sumar" ? nrSumarHtml() : nrView === "matrice" ? nrMatriceHtml() : nrDetaliuHtml();
         fitNrScroll();
+        requestAnimationFrame(fitNrScroll);
       }
       function nrFillSel() {
-        const u = (a) =>
-            [...new Set(a.filter(Boolean))].sort((x, y) =>
-              x.localeCompare(y, "ro"),
-            ),
+        const u = (a) => [...new Set(a.filter(Boolean))].sort((x, y) => x.localeCompare(y, "ro")),
           set = (id, k, items, all) => {
             const el = $("#" + id);
             if (!el) return;
-            el.innerHTML =
-              `<option value="">${all}</option>` +
-              items
-                .map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`)
-                .join("");
+            el.innerHTML = `<option value="">${all}</option>` + items.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join("");
             el.value = nrF[k];
             if (el.value !== nrF[k]) nrF[k] = el.value = "";
           };
-        set(
-          "nrModel",
-          "model",
-          u([...nrRows.map((r) => r.model), ...nrDen.map((d) => d.model)]).map(
-            (x) => [x, x],
-          ),
-          "Toate",
-        );
-        set(
-          "nrCul",
-          "culoare",
-          u([
-            ...nrRows.map((r) => r.culoare),
-            ...nrDen.map((d) => d.culoare),
-          ]).map((x) => [x, x]),
-          "Toate",
-        );
-        set(
-          "nrOp",
-          "op",
-          u(nrRows.map((r) => r.uid))
-            .map((x) => [x, nm(x)])
-            .sort((a, b) => a[1].localeCompare(b[1], "ro")),
-          "Toți",
-        );
-        set(
-          "nrCrit",
-          "crit",
-          u(nrRows.map(nrKey)).map((x) => [x, x]),
-          "Toate",
-        );
+        set("nrModel", "model", u([...nrRows.map((r) => r.model), ...nrDen.map((d) => d.model)]).map((x) => [x, x]), "Toate");
+        set("nrCul", "culoare", u([...nrRows.map((r) => r.culoare), ...nrDen.map((d) => d.culoare)]).map((x) => [x, x]), "Toate");
+        set("nrOp", "op", u(nrRows.map((r) => r.uid)).map((x) => [x, nm(x)]).sort((a, b) => a[1].localeCompare(b[1], "ro")), "Toți");
+        set("nrCrit", "crit", u(nrRows.map(nrKey)).map((x) => [x, x]), "Toate");
       }
       async function nrFetch() {
         const de = nrDe + "T00:00:00",
           pana = nrPana + "T23:59:59",
-          base =
-            "id,asm_produs_id,etapa_id,criteriu_text,descriere,status,remediata_de,remediata_la,created_at,asm_poze(id,tip)",
-          qN = (sel) => (a, b) =>
-            sb
-              .from("asm_nereguli")
-              .select(sel)
-              .gte("created_at", de)
-              .lte("created_at", pana)
-              .order("created_at", { ascending: false })
-              .order("id")
-              .range(a, b);
+          base = "id,asm_produs_id,etapa_id,criteriu_text,descriere,status,remediata_de,remediata_la,created_at,asm_poze(id,tip)",
+          qN = (sel) => (a, b) => sb.from("asm_nereguli").select(sel).gte("created_at", de).lte("created_at", pana).order("created_at", { ascending: false }).order("id").range(a, b);
         try {
           const [n, e] = await Promise.all([
-            fetchAll(
-              qN(
-                base + ",asm_etape(tip,user_id),asm_produse(vin,model,culoare)",
-              ),
-              STA_MAX,
-            ).catch(async () => {
+            fetchAll(qN(base + ",asm_etape(tip,user_id),asm_produse(vin,model,culoare)"), STA_MAX).catch(async () => {
               /* fără relații directe în schemă: se completează separat */
               const r = await fetchAll(qN(base), STA_MAX);
-              const ev = await inChunks(
-                [...new Set(r.rows.map((x) => x.etapa_id))],
-                (ch) =>
-                  sb.from("asm_etape").select("id,tip,user_id").in("id", ch),
-              );
-              const pr = await inChunks(
-                [...new Set(r.rows.map((x) => x.asm_produs_id))],
-                (ch) =>
-                  sb
-                    .from("asm_produse")
-                    .select("id,vin,model,culoare")
-                    .in("id", ch),
-              );
+              const ev = await inChunks([...new Set(r.rows.map((x) => x.etapa_id))], (ch) => sb.from("asm_etape").select("id,tip,user_id").in("id", ch));
+              const pr = await inChunks([...new Set(r.rows.map((x) => x.asm_produs_id))], (ch) => sb.from("asm_produse").select("id,vin,model,culoare").in("id", ch));
               const em = Object.fromEntries(ev.map((x) => [x.id, x])),
                 pm = Object.fromEntries(pr.map((x) => [x.id, x]));
               r.rows.forEach((x) => {
@@ -3973,9 +3830,7 @@
               (a, b) =>
                 sb
                   .from("asm_etape")
-                  .select(
-                    "id,asm_produs_id,tip,user_id,ended_at,asm_produse(model,culoare)",
-                  )
+                  .select("id,asm_produs_id,tip,user_id,ended_at,asm_produse(model,culoare)")
                   .in("tip", ["asamblare", "ctc"])
                   .not("ended_at", "is", null)
                   .gte("ended_at", de)
@@ -3986,11 +3841,7 @@
               STA_MAX,
             ),
           ]);
-          if (n.truncated || e.truncated)
-            toast(
-              `Perioada are peste ${STA_MAX} înregistrări: restrânge perioada.`,
-              1,
-            );
+          if (n.truncated || e.truncated) toast(`Perioada are peste ${STA_MAX} înregistrări: restrânge perioada.`, 1);
           nrRows = n.rows.map((r) => ({
             pid: r.asm_produs_id,
             crit: (r.criteriu_text || "").trim(),
@@ -4024,9 +3875,7 @@
         }
       }
       async function nrLoad() {
-        if ($("#nrTbl"))
-          $("#nrTbl").innerHTML =
-            '<div class="mut" style="padding:8px">Se încarcă...</div>';
+        if ($("#nrTbl")) $("#nrTbl").innerHTML = '<div class="mut" style="padding:8px">Se încarcă...</div>';
         await nrFetch();
         nrFillSel();
         nrDraw();
@@ -4050,10 +3899,8 @@
         }
         const dpk = (id, val) =>
             `<div class="dp"><input type="text" id="${id}Txt" class="dp-txt" data-a="opendate" data-t="${id}" readonly placeholder="ZZ.LL.AAAA" value="${fmtDMY(val)}"><input type="date" id="${id}" class="dp-native" value="${val}" tabindex="-1"></div>`,
-          fld = (l, inner, w, mx, cl = "") =>
-            `<div class="nrf ${cl}" style="max-width:${w}px;flex:1 1 ${w - 30}px;--mx:${mx}px"><div class="mut" style="margin-bottom:1px">${l}</div>${inner}</div>`,
-          vb = (v, l) =>
-            `<button class="btn sm ${nrView === v ? "" : "gh"}" data-a="nrview" data-v="${v}">${l}</button>`;
+          fld = (l, inner, w, mx, cl = "") => `<div class="nrf ${cl}" style="max-width:${w}px;flex:1 1 ${w - 30}px;--mx:${mx}px"><div class="mut" style="margin-bottom:1px">${l}</div>${inner}</div>`,
+          vb = (v, l) => `<button class="btn sm ${nrView === v ? "" : "gh"}" data-a="nrview" data-v="${v}">${l}</button>`;
         c.innerHTML = `<div class="card sta-filters" style="padding:8px 14px;margin-bottom:6px"><div class="nrfl" style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:6px">
 ${fld("Din data", dpk("nrDe", nrDe), 140, 118, "nrd")}${fld("Până în data", dpk("nrPana", nrPana), 140, 118, "nrd")}
 ${fld("Model", '<select id="nrModel"></select>', 170, 150)}${fld("Culoare", '<select id="nrCul"></select>', 150, 110)}
@@ -4066,11 +3913,7 @@ ${fld("Căutare", '<input id="nrQ" placeholder="VIN / descriere">', 190, 160)}
 <div style="flex:0 0 auto"><button class="btn gh sm" id="nrExp">⬇ Exportă Excel</button></div></div></div>
 <div class="card" id="nrChart" style="padding:8px 14px;margin-bottom:6px"></div>
 <div class="card" style="padding:8px 14px"><div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:6px">${vb("sumar", "Sumar")}${vb("matrice", "Matrice neregulă × model")}${vb("detaliu", "Detaliu")}
-<span id="nrGrpW" style="display:flex;align-items:center;gap:6px;margin-left:8px"><span class="mut">Grupează după</span><select id="nrGrp" style="width:auto">${Object.entries(
-          NR_G,
-        )
-          .map(([v, l]) => `<option value="${v}">${l}</option>`)
-          .join("")}</select></span>
+<span id="nrGrpW" style="display:flex;align-items:center;gap:6px;margin-left:8px"><span class="mut">Grupează după</span><select id="nrGrp" style="width:auto">${Object.entries(NR_G).map(([v, l]) => `<option value="${v}">${l}</option>`).join("")}</select></span>
 <span class="mut" id="nrInfo" style="margin-left:auto"></span><span id="nrPager" style="display:none;align-items:center;gap:6px"><button class="btn gh sm" data-a="nrpg" data-d="-1" id="nrPrev">‹ Anterior</button><span class="mut" id="nrInfoPg"></span><button class="btn gh sm" data-a="nrpg" data-d="1" id="nrNext">Următor ›</button></span></div>
 <div class="wrap"><div class="list-scroll" id="nrScroll" style="max-height:none"><div id="nrTbl"></div></div></div>
 </div>`;
@@ -4087,14 +3930,7 @@ ${fld("Căutare", '<input id="nrQ" placeholder="VIN / descriere">', 190, 160)}
           nrPage = 1;
           nrLoad();
         };
-        [
-          ["nrModel", "model"],
-          ["nrCul", "culoare"],
-          ["nrTip", "tip"],
-          ["nrOp", "op"],
-          ["nrSt", "status"],
-          ["nrCrit", "crit"],
-        ].forEach(([id, k]) => {
+        [["nrModel", "model"], ["nrCul", "culoare"], ["nrTip", "tip"], ["nrOp", "op"], ["nrSt", "status"], ["nrCrit", "crit"]].forEach(([id, k]) => {
           $("#" + id).onchange = (e) => {
             nrF[k] = e.target.value;
             nrPage = 1;
@@ -4115,15 +3951,7 @@ ${fld("Căutare", '<input id="nrQ" placeholder="VIN / descriere">', 190, 160)}
           const zi = isoZi(new Date()),
             de = isoZi(new Date(Date.now() - 90 * 864e5)),
             schimbata = nrDe !== de || nrPana !== zi;
-          nrF = {
-            model: "",
-            culoare: "",
-            tip: "",
-            op: "",
-            status: "",
-            crit: "",
-            q: "",
-          };
+          nrF = { model: "", culoare: "", tip: "", op: "", status: "", crit: "", q: "" };
           nrPage = 1;
           nrSyncUI();
           if (schimbata) {
@@ -4143,10 +3971,7 @@ ${fld("Căutare", '<input id="nrQ" placeholder="VIN / descriere">', 190, 160)}
         try {
           await loadExcelJS();
         } catch {
-          return toast(
-            "Biblioteca Excel nu s-a încărcat. Verifică conexiunea și reîncearcă.",
-            1,
-          );
+          return toast("Biblioteca Excel nu s-a încărcat. Verifică conexiunea și reîncearcă.", 1);
         }
         const wb = new ExcelJS.Workbook(),
           flt = `Perioadă ${fmtDMY(nrDe)} – ${fmtDMY(nrPana)} · Model: ${nrF.model || "Toate"} · Culoare: ${nrF.culoare || "Toate"} · Găsită la: ${nrF.tip ? TIP_ACT[nrF.tip] : "Toate"} · Operator: ${nrF.op ? nm(nrF.op) : "Toți"} · Status: ${nrF.status ? STN[nrF.status] : "Toate"} · Neregulă: ${nrF.crit || "Toate"}`,
@@ -4157,90 +3982,24 @@ ${fld("Căutare", '<input id="nrQ" placeholder="VIN / descriere">', 190, 160)}
             ws.views = [{ state: "frozen", ySplit: 2 }];
             rows.forEach((r) => ws.addRow(r));
             heads.forEach((_, i) => (ws.getColumn(i + 1).width = w[i] || 14));
-            ws.autoFilter = {
-              from: { row: 2, column: 1 },
-              to: { row: 2, column: heads.length },
-            };
+            ws.autoFilter = { from: { row: 2, column: 1 }, to: { row: 2, column: heads.length } };
           },
           S = nrSumar(),
           M = nrMatrice();
         sheet(
           "Sumar",
-          [
-            NR_G[nrGrp],
-            "Apariții",
-            "Produse afectate",
-            "Produse verificate",
-            "Rată (%)",
-            "Asamblare",
-            "CTC",
-            "Deschise",
-            "Remediate",
-            "Timp mediu remediere (lucrat)",
-          ],
-          S.map((o) => [
-            o.k,
-            o.n,
-            o.np,
-            o.den,
-            o.den ? +((o.np / o.den) * 100).toFixed(1) : null,
-            o.a,
-            o.c,
-            o.d,
-            o.r,
-            o.tn ? durW(o.t / o.tn) : "—",
-          ]),
+          [NR_G[nrGrp], "Apariții", "Produse afectate", "Produse verificate", "Rată (%)", "Asamblare", "CTC", "Deschise", "Remediate", "Timp mediu remediere (lucrat)"],
+          S.map((o) => [o.k, o.n, o.np, o.den, o.den ? +((o.np / o.den) * 100).toFixed(1) : null, o.a, o.c, o.d, o.r, o.tn ? durW(o.t / o.tn) : "—"]),
           [44, 10, 16, 18, 10, 12, 8, 10, 12, 28],
         );
-        sheet(
-          "Matrice",
-          ["Neregulă", ...M.models, "Total"],
-          M.rows.map((o) => [o.k, ...M.models.map((m) => o.by[m] || 0), o.t]),
-          [48, ...M.models.map(() => 14), 10],
-        );
+        sheet("Matrice", ["Neregulă", ...M.models, "Total"], M.rows.map((o) => [o.k, ...M.models.map((m) => o.by[m] || 0), o.t]), [48, ...M.models.map(() => 14), 10]);
         sheet(
           "Detaliu",
-          [
-            "Nr.",
-            "Data",
-            "Model",
-            "Culoare",
-            "VIN",
-            "Găsită la",
-            "Operator",
-            "Neregulă",
-            "Descriere",
-            "Status",
-            "Remediat la",
-            "Remediat de",
-            "Timp remediere (lucrat)",
-            "Poze înainte",
-            "Poze după",
-          ],
-          nrFiltered.map((r, i) => [
-            i + 1,
-            fmtDT(r.cre),
-            r.model,
-            r.culoare,
-            r.vin || "—",
-            TIP_ACT[r.tip] || "—",
-            nm(r.uid),
-            r.crit || "—",
-            r.desc || "—",
-            STN[r.status] || r.status,
-            r.rem ? fmtDT(r.rem) : "—",
-            r.rem ? nm(r.remDe) : "—",
-            r.rem ? durW(lucratMs(+new Date(r.cre), +new Date(r.rem))) : "—",
-            r.pin,
-            r.pdup,
-          ]),
+          ["Nr.", "Data", "Model", "Culoare", "VIN", "Găsită la", "Operator", "Neregulă", "Descriere", "Status", "Remediat la", "Remediat de", "Timp remediere (lucrat)", "Poze înainte", "Poze după"],
+          nrFiltered.map((r, i) => [i + 1, fmtDT(r.cre), r.model, r.culoare, r.vin || "—", TIP_ACT[r.tip] || "—", nm(r.uid), r.crit || "—", r.desc || "—", STN[r.status] || r.status, r.rem ? fmtDT(r.rem) : "—", r.rem ? nm(r.remDe) : "—", r.rem ? durW(lucratMs(+new Date(r.cre), +new Date(r.rem))) : "—", r.pin, r.pdup]),
           [6, 18, 16, 14, 20, 12, 22, 40, 40, 12, 18, 22, 22, 12, 12],
         );
-        const url = URL.createObjectURL(
-            new Blob([await wb.xlsx.writeBuffer()], {
-              type: "application/octet-stream",
-            }),
-          ),
+        const url = URL.createObjectURL(new Blob([await wb.xlsx.writeBuffer()], { type: "application/octet-stream" })),
           a = document.createElement("a");
         a.href = url;
         a.download = `nereguli-asamblare_${nrDe}_${nrPana}.xlsx`;
@@ -5501,8 +5260,7 @@ ${fld("Căutare", '<input id="nrQ" placeholder="VIN / descriere">', 190, 160)}
           .order("data");
         if (!$("#zlList")) return;
         if (error) {
-          el.innerHTML =
-            '<div class="mut">Eroare la încărcarea zilelor libere.</div>';
+          el.innerHTML = '<div class="mut">Eroare la încărcarea zilelor libere.</div>';
           return;
         }
         el.innerHTML =
